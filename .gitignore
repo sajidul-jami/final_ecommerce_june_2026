@@ -1,0 +1,46 @@
+# Node.js dependencies
+node_modules/
+
+# Local environment files
+.env
+.env.*
+.env*.local
+
+# Build output
+dist/
+build/
+.next/
+out/
+
+# Logs
+npm-debug.log*
+yarn-debug.log*
+pnpm-debug.log*
+logs/
+*.log
+
+# OS files
+.DS_Store
+Thumbs.db
+
+# Docker
+docker-compose.override.yml
+
+# Editor files
+.vscode/
+.idea/
+*.suo
+*.ntvs*
+*.njsproj
+*.sln
+
+# Temporary files
+*.tmp
+*.temp
+*.swp
+
+# Misc
+*.pem
+
+# Ignore all node_modules in subfolders too
+**/node_modules/

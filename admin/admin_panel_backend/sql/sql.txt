@@ -1,0 +1,166 @@
+-- =========================================
+-- Ecommerce Admin Demo Database (MySQL)
+-- =========================================
+
+CREATE DATABASE ecommerce_demo;
+USE ecommerce_demo;
+
+-- =========================================
+-- Admin Users Table
+-- =========================================
+
+CREATE TABLE admins (
+    id INT AUTO_INCREMENT PRIMARY KEY,
+    full_name VARCHAR(100) NOT NULL,
+    email VARCHAR(100) UNIQUE NOT NULL,
+    password VARCHAR(255) NOT NULL,
+    role ENUM('Super Admin', 'Manager', 'Support') DEFAULT 'Manager',
+    phone VARCHAR(20),
+    status ENUM('Active', 'Inactive') DEFAULT 'Active',
+    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+);
+
+INSERT INTO admins (full_name, email, password, role, phone, status)
+VALUES
+('Sajid Rahman', 'admin@shop.com', 'admin123', 'Super Admin', '01711111111', 'Active'),
+('Rakib Hasan', 'manager@shop.com', 'manager123', 'Manager', '01822222222', 'Active'),
+('Nusrat Jahan', 'support@shop.com', 'support123', 'Support', '01933333333', 'Active');
+
+-- =========================================
+-- Categories Table
+-- =========================================
+
+CREATE TABLE categories (
+    id INT AUTO_INCREMENT PRIMARY KEY,
+    category_name VARCHAR(100) NOT NULL,
+    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+);
+
+INSERT INTO categories (category_name)
+VALUES
+('Electronics'),
+('Fashion'),
+('Home Appliance'),
+('Books'),
+('Gaming');
+
+-- =========================================
+-- Products Table
+-- =========================================
+
+CREATE TABLE products (
+    id INT AUTO_INCREMENT PRIMARY KEY,
+    category_id INT,
+    product_name VARCHAR(200) NOT NULL,
+    sku VARCHAR(100) UNIQUE,
+    price DECIMAL(10,2),
+    stock INT DEFAULT 0,
+    description TEXT,
+    image VARCHAR(255),
+    status ENUM('Active', 'Inactive') DEFAULT 'Active',
+    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+    
+    FOREIGN KEY (category_id) REFERENCES categories(id)
+);
+
+INSERT INTO products 
+(category_id, product_name, sku, price, stock, description, image)
+VALUES
+(1, 'iPhone 15 Pro', 'IPH15PRO', 145000.00, 10, 'Apple flagship smartphone', 'iphone15.jpg'),
+(1, 'Samsung Galaxy S24', 'SGS24', 120000.00, 15, 'Samsung Android flagship', 's24.jpg'),
+(2, 'Men Casual T-Shirt', 'MTS100', 850.00, 100, 'Comfortable cotton t-shirt', 'shirt.jpg'),
+(3, 'LG Smart TV 43 Inch', 'LGTV43', 55000.00, 8, '4K UHD Smart Television', 'lgtv.jpg'),
+(5, 'PlayStation 5', 'PS5SONY', 75000.00, 5, 'Sony Gaming Console', 'ps5.jpg');
+
+-- =========================================
+-- Customers Table
+-- =========================================
+
+CREATE TABLE customers (
+    id INT AUTO_INCREMENT PRIMARY KEY,
+    full_name VARCHAR(100),
+    email VARCHAR(100) UNIQUE,
+    phone VARCHAR(20),
+    address TEXT,
+    city VARCHAR(50),
+    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+);
+
+INSERT INTO customers 
+(full_name, email, phone, address, city)
+VALUES
+('Tanvir Ahmed', 'tanvir@gmail.com', '01755555555', 'Dhanmondi', 'Dhaka'),
+('Mim Akter', 'mim@gmail.com', '01866666666', 'Uttara', 'Dhaka'),
+('Hasib Khan', 'hasib@gmail.com', '01977777777', 'Chawkbazar', 'Chittagong');
+
+-- =========================================
+-- Orders Table
+-- =========================================
+
+CREATE TABLE orders (
+    id INT AUTO_INCREMENT PRIMARY KEY,
+    customer_id INT,
+    total_amount DECIMAL(10,2),
+    payment_method ENUM('Cash On Delivery', 'Card', 'Bkash', 'Nagad'),
+    order_status ENUM('Pending', 'Processing', 'Completed', 'Cancelled') DEFAULT 'Pending',
+    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+
+    FOREIGN KEY (customer_id) REFERENCES customers(id)
+);
+
+INSERT INTO orders
+(customer_id, total_amount, payment_method, order_status)
+VALUES
+(1, 145000.00, 'Bkash', 'Completed'),
+(2, 850.00, 'Cash On Delivery', 'Processing'),
+(3, 75000.00, 'Card', 'Pending');
+
+-- =========================================
+-- Order Items Table
+-- =========================================
+
+CREATE TABLE order_items (
+    id INT AUTO_INCREMENT PRIMARY KEY,
+    order_id INT,
+    product_id INT,
+    quantity INT,
+    price DECIMAL(10,2),
+
+    FOREIGN KEY (order_id) REFERENCES orders(id),
+    FOREIGN KEY (product_id) REFERENCES products(id)
+);
+
+INSERT INTO order_items
+(order_id, product_id, quantity, price)
+VALUES
+(1, 1, 1, 145000.00),
+(2, 3, 1, 850.00),
+(3, 5, 1, 75000.00);
+
+-- =========================================
+-- Payments Table
+-- =========================================
+
+CREATE TABLE payments (
+    id INT AUTO_INCREMENT PRIMARY KEY,
+    order_id INT,
+    transaction_id VARCHAR(100),
+    amount DECIMAL(10,2),
+    payment_status ENUM('Paid', 'Unpaid', 'Refunded') DEFAULT 'Paid',
+    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+
+    FOREIGN KEY (order_id) REFERENCES orders(id)
+);
+
+INSERT INTO payments
+(order_id, transaction_id, amount, payment_status)
+VALUES
+(1, 'TXN10001', 145000.00, 'Paid'),
+(2, 'TXN10002', 850.00, 'Unpaid'),
+(3, 'TXN10003', 75000.00, 'Paid');
+
+-- =========================================
+-- Demo Admin Login
+-- =========================================
+-- Email: admin@shop.com
+-- Password: admin123

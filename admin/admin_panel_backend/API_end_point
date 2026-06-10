@@ -1,0 +1,26 @@
+sales
+======================
+GET	/api/sales/summary	Dashboard summary
+GET	/api/sales/recent	Recent sales
+GET	/api/sales/payment-method	Payment analytics
+
+orders
+======================
+GET	/api/orders	Get all orders
+GET	/api/orders/:id	Get single order
+POST	/api/orders	Create new order
+PUT	/api/orders/:id	Update full order
+PATCH	/api/orders/:id/status	Update order status
+DELETE	/api/orders/:id	Delete order
+
+
+Categories
+
+========================
+
+GET	/api/categories
+GET	/api/categories/:id
+POST	/api/categories/add
+PUT	/api/categories/update/:id
+DELETE	/api/categories/delete/:id
+

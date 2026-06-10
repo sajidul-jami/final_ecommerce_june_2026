@@ -1,0 +1,57 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: admin-frontend
+  namespace: website-2026
+spec:
+  replicas: 2
+  selector:
+    matchLabels:
+      app: admin-frontend
+  template:
+    metadata:
+      labels:
+        app: admin-frontend
+    spec:
+      containers:
+        - name: admin-frontend
+          image: registry.example.com/website2026/admin-frontend:latest
+          imagePullPolicy: IfNotPresent
+          ports:
+            - containerPort: 3000
+          env:
+            - name: PORT
+              value: "3000"
+            - name: NEXT_PUBLIC_API_URL
+              valueFrom:
+                configMapKeyRef:
+                  name: website-2026-config
+                  key: ADMIN_API_PUBLIC_URL
+            - name: NEXT_PUBLIC_UPLOAD_URL
+              valueFrom:
+                configMapKeyRef:
+                  name: website-2026-config
+                  key: ADMIN_UPLOAD_PUBLIC_URL
+            - name: NEXT_PUBLIC_PRODUCT_IMAGE_BASE_URL
+              valueFrom:
+                configMapKeyRef:
+                  name: website-2026-config
+                  key: PRODUCT_IMAGE_PUBLIC_URL
+          readinessProbe:
+            httpGet:
+              path: /login
+              port: 3000
+            initialDelaySeconds: 15
+            periodSeconds: 10
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: admin-frontend
+  namespace: website-2026
+spec:
+  selector:
+    app: admin-frontend
+  ports:
+    - port: 3000
+      targetPort: 3000

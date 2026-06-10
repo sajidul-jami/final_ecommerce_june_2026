@@ -1,0 +1,189 @@
+services:
+  mysql:
+    image: mysql:8.4
+    container_name: website2026-mysql
+    restart: unless-stopped
+    environment:
+      MYSQL_DATABASE: ${DB_NAME:-ecommerce}
+      MYSQL_ROOT_PASSWORD: ${MYSQL_ROOT_PASSWORD:-change_me_root_password}
+    ports:
+      - "${MYSQL_PORT:-3306}:3306"
+    volumes:
+      - mysql_data:/var/lib/mysql
+      - ./new sql/sql_all.txt:/docker-entrypoint-initdb.d/001_schema.sql:ro
+    networks:
+      - website2026
+    healthcheck:
+      test: ["CMD", "mysqladmin", "ping", "-h", "127.0.0.1", "-uroot", "-p${MYSQL_ROOT_PASSWORD:-change_me_root_password}"]
+      interval: 10s
+      timeout: 5s
+      retries: 10
+      start_period: 30s
+
+  minio:
+    image: minio/minio:latest
+    container_name: website2026-minio
+    restart: unless-stopped
+    command: server /data --console-address ":9001"
+    environment:
+      MINIO_ROOT_USER: ${MINIO_ACCESS_KEY:-admin}
+      MINIO_ROOT_PASSWORD: ${MINIO_SECRET_KEY:-password123}
+    ports:
+      - "${MINIO_PORT:-9000}:9000"
+      - "${MINIO_CONSOLE_PORT:-9001}:9001"
+    volumes:
+      - minio_data:/data
+    networks:
+      - website2026
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://127.0.0.1:9000/minio/health/live"]
+      interval: 10s
+      timeout: 5s
+      retries: 10
+      start_period: 10s
+
+  minio-init:
+    image: minio/mc:latest
+    container_name: website2026-minio-init
+    depends_on:
+      minio:
+        condition: service_healthy
+    environment:
+      MINIO_HOST: minio
+      MINIO_PORT: 9000
+      MINIO_ACCESS_KEY: ${MINIO_ACCESS_KEY:-admin}
+      MINIO_SECRET_KEY: ${MINIO_SECRET_KEY:-password123}
+      MINIO_BUCKET: products
+    entrypoint: ["/bin/sh", "/scripts/minio-init.sh"]
+    volumes:
+      - ./scripts/minio-init.sh:/scripts/minio-init.sh:ro
+    networks:
+      - website2026
+    restart: "no"
+
+  user-backend:
+    build:
+      context: ./user/ecommerce_backend_2026
+    image: website2026/user-backend:latest
+    container_name: website2026-user-backend
+    restart: unless-stopped
+    depends_on:
+      mysql:
+        condition: service_healthy
+    environment:
+      PORT: 3005
+      NODE_ENV: production
+      DB_HOST: mysql
+      DB_USER: ${DB_USER:-root}
+      DB_PASSWORD: ${MYSQL_ROOT_PASSWORD:-change_me_root_password}
+      DB_NAME: ${DB_NAME:-ecommerce}
+      DB_PORT: 3306
+      JWT_SECRET: ${USER_JWT_SECRET:-change_me_user_jwt_secret}
+      CLIENT_URL: ${NEXT_PUBLIC_SITE_URL:-http://localhost:3000}
+      CORS_ORIGINS: ${USER_CORS_ORIGINS:-}
+    ports:
+      - "${USER_BACKEND_PORT:-3005}:3005"
+    networks:
+      - website2026
+    healthcheck:
+      test: ["CMD", "wget", "-qO-", "http://127.0.0.1:3005/health"]
+      interval: 15s
+      timeout: 5s
+      retries: 5
+      start_period: 20s
+
+  admin-backend:
+    build:
+      context: ./admin/admin_panel_backend
+    image: website2026/admin-backend:latest
+    container_name: website2026-admin-backend
+    restart: unless-stopped
+    depends_on:
+      mysql:
+        condition: service_healthy
+      minio-init:
+        condition: service_completed_successfully
+    environment:
+      PORT: 3001
+      NODE_ENV: production
+      JWT_SECRET: ${ADMIN_JWT_SECRET:-change_me_admin_jwt_secret}
+      CLIENT_URL: ${ADMIN_CLIENT_URL:-http://localhost:3002}
+      ADMIN_CLIENT_URL: ${ADMIN_CLIENT_URL:-http://localhost:3002}
+      CORS_ORIGINS: ${ADMIN_CORS_ORIGINS:-}
+      DB_HOST: mysql
+      DB_USER: ${DB_USER:-root}
+      DB_PASSWORD: ${MYSQL_ROOT_PASSWORD:-change_me_root_password}
+      DB_NAME: ${DB_NAME:-ecommerce}
+      DB_PORT: 3306
+      MINIO_ENDPOINT: minio
+      MINIO_PORT: 9000
+      MINIO_USE_SSL: ${MINIO_USE_SSL:-false}
+      MINIO_ACCESS_KEY: ${MINIO_ACCESS_KEY:-admin}
+      MINIO_SECRET_KEY: ${MINIO_SECRET_KEY:-password123}
+      MINIO_PUBLIC_URL: ${MINIO_PUBLIC_URL:-http://localhost:9000}
+    ports:
+      - "${ADMIN_BACKEND_PORT:-3001}:3001"
+    networks:
+      - website2026
+    healthcheck:
+      test: ["CMD", "wget", "-qO-", "http://127.0.0.1:3001/health"]
+      interval: 15s
+      timeout: 5s
+      retries: 5
+      start_period: 20s
+
+  user-frontend:
+    build:
+      context: ./user/ecommerce_frontend_2026
+      args:
+        NEXT_PUBLIC_API_BASE_URL: ${NEXT_PUBLIC_USER_API_BASE_URL}
+        NEXT_PUBLIC_PRODUCT_IMAGE_BASE_URL: ${NEXT_PUBLIC_PRODUCT_IMAGE_BASE_URL}
+        NEXT_PUBLIC_SITE_URL: ${NEXT_PUBLIC_SITE_URL}
+    image: website2026/user-frontend:latest
+    container_name: website2026-user-frontend
+    restart: unless-stopped
+    depends_on:
+      user-backend:
+        condition: service_healthy
+    ports:
+      - "${USER_FRONTEND_PORT:-3000}:3000"
+    networks:
+      - website2026
+    healthcheck:
+      test: ["CMD", "wget", "-qO-", "http://127.0.0.1:3000/"]
+      interval: 20s
+      timeout: 5s
+      retries: 5
+      start_period: 30s
+
+  admin-frontend:
+    build:
+      context: ./admin/admin_panel_frontend
+      args:
+        NEXT_PUBLIC_API_URL: ${NEXT_PUBLIC_ADMIN_API_URL}
+        NEXT_PUBLIC_UPLOAD_URL: ${NEXT_PUBLIC_ADMIN_UPLOAD_URL}
+        NEXT_PUBLIC_PRODUCT_IMAGE_BASE_URL: ${NEXT_PUBLIC_PRODUCT_IMAGE_BASE_URL}
+    image: website2026/admin-frontend:latest
+    container_name: website2026-admin-frontend
+    restart: unless-stopped
+    depends_on:
+      admin-backend:
+        condition: service_healthy
+    ports:
+      - "${ADMIN_FRONTEND_PORT:-3002}:3000"
+    networks:
+      - website2026
+    healthcheck:
+      test: ["CMD", "wget", "-qO-", "http://127.0.0.1:3000/"]
+      interval: 20s
+      timeout: 5s
+      retries: 5
+      start_period: 30s
+
+networks:
+  website2026:
+    driver: bridge
+
+volumes:
+  mysql_data:
+  minio_data:

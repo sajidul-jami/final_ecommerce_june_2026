@@ -1,0 +1,128 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: admin-backend
+  namespace: website-2026
+spec:
+  replicas: 2
+  selector:
+    matchLabels:
+      app: admin-backend
+  template:
+    metadata:
+      labels:
+        app: admin-backend
+    spec:
+      containers:
+        - name: admin-backend
+          image: registry.example.com/website2026/admin-backend:latest
+          imagePullPolicy: IfNotPresent
+          ports:
+            - containerPort: 3001
+          env:
+            - name: PORT
+              value: "3001"
+            - name: CLIENT_URL
+              valueFrom:
+                configMapKeyRef:
+                  name: website-2026-config
+                  key: ADMIN_CLIENT_URL
+            - name: ADMIN_CLIENT_URL
+              valueFrom:
+                configMapKeyRef:
+                  name: website-2026-config
+                  key: ADMIN_CLIENT_URL
+            - name: CORS_ORIGINS
+              valueFrom:
+                configMapKeyRef:
+                  name: website-2026-config
+                  key: ADMIN_CORS_ORIGINS
+            - name: NODE_ENV
+              valueFrom:
+                configMapKeyRef:
+                  name: website-2026-config
+                  key: NODE_ENV
+            - name: DB_HOST
+              valueFrom:
+                configMapKeyRef:
+                  name: website-2026-config
+                  key: DB_HOST
+            - name: DB_PORT
+              valueFrom:
+                configMapKeyRef:
+                  name: website-2026-config
+                  key: DB_PORT
+            - name: DB_NAME
+              valueFrom:
+                configMapKeyRef:
+                  name: website-2026-config
+                  key: DB_NAME
+            - name: MINIO_ENDPOINT
+              valueFrom:
+                configMapKeyRef:
+                  name: website-2026-config
+                  key: MINIO_ENDPOINT
+            - name: MINIO_PORT
+              valueFrom:
+                configMapKeyRef:
+                  name: website-2026-config
+                  key: MINIO_PORT
+            - name: MINIO_USE_SSL
+              valueFrom:
+                configMapKeyRef:
+                  name: website-2026-config
+                  key: MINIO_USE_SSL
+            - name: MINIO_PUBLIC_URL
+              valueFrom:
+                configMapKeyRef:
+                  name: website-2026-config
+                  key: MINIO_PUBLIC_URL
+            - name: DB_USER
+              valueFrom:
+                secretKeyRef:
+                  name: website-2026-secrets
+                  key: DB_USER
+            - name: DB_PASSWORD
+              valueFrom:
+                secretKeyRef:
+                  name: website-2026-secrets
+                  key: DB_PASSWORD
+            - name: JWT_SECRET
+              valueFrom:
+                secretKeyRef:
+                  name: website-2026-secrets
+                  key: ADMIN_JWT_SECRET
+            - name: MINIO_ACCESS_KEY
+              valueFrom:
+                secretKeyRef:
+                  name: website-2026-secrets
+                  key: MINIO_ACCESS_KEY
+            - name: MINIO_SECRET_KEY
+              valueFrom:
+                secretKeyRef:
+                  name: website-2026-secrets
+                  key: MINIO_SECRET_KEY
+          readinessProbe:
+            httpGet:
+              path: /health
+              port: 3001
+            initialDelaySeconds: 10
+            periodSeconds: 10
+          livenessProbe:
+            httpGet:
+              path: /health
+              port: 3001
+            initialDelaySeconds: 30
+            periodSeconds: 20
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: admin-backend
+  namespace: website-2026
+spec:
+  selector:
+    app: admin-backend
+  ports:
+    - port: 3001
+      targetPort: 3001

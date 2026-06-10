@@ -1,0 +1,10 @@
+resources:
+  - namespace.yaml
+  - configmap.yaml
+  - secrets.example.yaml
+  - minio.yaml
+  - user-backend.yaml
+  - admin-backend.yaml
+  - user-frontend.yaml
+  - admin-frontend.yaml
+  - ingress.example.yaml

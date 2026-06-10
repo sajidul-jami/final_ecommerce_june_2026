@@ -1,0 +1,93 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: user-backend
+  namespace: website-2026
+spec:
+  replicas: 2
+  selector:
+    matchLabels:
+      app: user-backend
+  template:
+    metadata:
+      labels:
+        app: user-backend
+    spec:
+      containers:
+        - name: user-backend
+          image: registry.example.com/website2026/user-backend:latest
+          imagePullPolicy: IfNotPresent
+          ports:
+            - containerPort: 3005
+          env:
+            - name: PORT
+              value: "3005"
+            - name: DB_HOST
+              valueFrom:
+                configMapKeyRef:
+                  name: website-2026-config
+                  key: DB_HOST
+            - name: DB_PORT
+              valueFrom:
+                configMapKeyRef:
+                  name: website-2026-config
+                  key: DB_PORT
+            - name: DB_NAME
+              valueFrom:
+                configMapKeyRef:
+                  name: website-2026-config
+                  key: DB_NAME
+            - name: DB_USER
+              valueFrom:
+                secretKeyRef:
+                  name: website-2026-secrets
+                  key: DB_USER
+            - name: DB_PASSWORD
+              valueFrom:
+                secretKeyRef:
+                  name: website-2026-secrets
+                  key: DB_PASSWORD
+            - name: JWT_SECRET
+              valueFrom:
+                secretKeyRef:
+                  name: website-2026-secrets
+                  key: USER_JWT_SECRET
+            - name: CLIENT_URL
+              valueFrom:
+                configMapKeyRef:
+                  name: website-2026-config
+                  key: USER_CLIENT_URL
+            - name: CORS_ORIGINS
+              valueFrom:
+                configMapKeyRef:
+                  name: website-2026-config
+                  key: USER_CORS_ORIGINS
+            - name: NODE_ENV
+              valueFrom:
+                configMapKeyRef:
+                  name: website-2026-config
+                  key: NODE_ENV
+          readinessProbe:
+            httpGet:
+              path: /health
+              port: 3005
+            initialDelaySeconds: 10
+            periodSeconds: 10
+          livenessProbe:
+            httpGet:
+              path: /health
+              port: 3005
+            initialDelaySeconds: 30
+            periodSeconds: 20
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: user-backend
+  namespace: website-2026
+spec:
+  selector:
+    app: user-backend
+  ports:
+    - port: 3005
+      targetPort: 3005

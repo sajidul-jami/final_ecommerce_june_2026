@@ -1,0 +1,259 @@
+CREATE DATABASE IF NOT EXISTS ecommerce;
+USE ecommerce;
+
+-- =========================================
+-- 1. Admins (একই রাখা হয়েছে)
+-- =========================================
+CREATE TABLE admins (
+    id INT AUTO_INCREMENT PRIMARY KEY,
+    full_name VARCHAR(100) NOT NULL,
+    email VARCHAR(100) UNIQUE NOT NULL,
+    password VARCHAR(255) NOT NULL,
+    role ENUM('Super Admin', 'Manager', 'Support') DEFAULT 'Manager',
+    phone VARCHAR(20),
+    status ENUM('Active', 'Inactive') DEFAULT 'Active',
+    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+);
+
+-- =========================================
+-- 2. Users (Customer) - নাম একই রাখা হয়েছে
+-- =========================================
+CREATE TABLE users (
+    id INT AUTO_INCREMENT PRIMARY KEY,
+    user_name TEXT NOT NULL,
+    email VARCHAR(200) UNIQUE NOT NULL,
+    password VARCHAR(60) NOT NULL,
+    type INT(1) DEFAULT 0,
+    location TEXT,
+    phone_number VARCHAR(100),
+    photo VARCHAR(200) DEFAULT 'default.jpg',
+    status INT(1) DEFAULT 1,
+    activate_code VARCHAR(15),
+    reset_code VARCHAR(15),
+    created_at DATE,
+    full_name VARCHAR(100),           -- যোগ করা হয়েছে (আগের customers থেকে)
+    address TEXT,                     -- যোগ করা হয়েছে
+    city VARCHAR(50)                  -- যোগ করা হয়েছে
+);
+
+-- =========================================
+-- 3. Categories - নাম একই রাখা হয়েছে
+-- =========================================
+CREATE TABLE category (
+    id INT AUTO_INCREMENT PRIMARY KEY,
+    name VARCHAR(100) NOT NULL,
+    cat_slug VARCHAR(150) NOT NULL,
+    cat_code VARCHAR(50) NOT NULL UNIQUE,     -- ← নতুন (মেইন কলাম)
+    parent_code VARCHAR(50) NULL,             -- ← নতুন
+    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+);
+
+-- =========================================
+-- 4. Products - নাম একই রাখা হয়েছে
+-- =========================================
+CREATE TABLE products (
+    id INT AUTO_INCREMENT PRIMARY KEY,
+    category_id INT NOT NULL,
+    name TEXT NOT NULL,
+    description TEXT,
+    slug VARCHAR(200),
+    price DOUBLE NOT NULL,
+    photo VARCHAR(200),
+    date_view DATE,
+    counter INT DEFAULT 0,
+    quantity INT DEFAULT 0,           -- stock হিসেবে ব্যবহার করবে
+    sku VARCHAR(100) UNIQUE,
+    status ENUM('Active', 'Inactive') DEFAULT 'Active',
+    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+    
+    FOREIGN KEY (category_id) REFERENCES category(id)
+);
+
+-- =========================================
+-- 5. Cart - একই রাখা হয়েছে
+-- =========================================
+CREATE TABLE cart (
+    id INT AUTO_INCREMENT PRIMARY KEY,
+    user_id INT NOT NULL,
+    product_id INT NOT NULL,
+    quantity INT NOT NULL,
+    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+    
+    FOREIGN KEY (user_id) REFERENCES users(id),
+    FOREIGN KEY (product_id) REFERENCES products(id)
+);
+
+-- =========================================
+-- 6. Orders - নাম একই রাখা হয়েছে
+-- =========================================
+CREATE TABLE orders (
+    id INT AUTO_INCREMENT PRIMARY KEY,
+    customer_id INT NOT NULL,                    -- users.id এর সাথে লিঙ্ক
+    total_amount DECIMAL(10,2) NOT NULL,
+    payment_method ENUM('Cash On Delivery', 'Card', 'Bkash', 'Nagad'),
+    order_status ENUM('Pending', 'Processing', 'Completed', 'Cancelled') DEFAULT 'Pending',
+    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+    
+    FOREIGN KEY (customer_id) REFERENCES users(id)
+);
+
+-- =========================================
+-- 7. Order Items - details নামই রাখা হয়েছে (সবচেয়ে কম চেঞ্জের জন্য)
+-- =========================================
+CREATE TABLE details (
+    id INT AUTO_INCREMENT PRIMARY KEY,
+    sales_id INT NOT NULL,           -- এটাকে order_id হিসেবে ব্যবহার করবে
+    product_id INT NOT NULL,
+    quantity INT NOT NULL,
+    price DECIMAL(10,2),
+    
+    FOREIGN KEY (sales_id) REFERENCES orders(id),
+    FOREIGN KEY (product_id) REFERENCES products(id)
+);
+
+-- =========================================
+-- 8. Payments - একই রাখা হয়েছে
+-- =========================================
+CREATE TABLE payments (
+    id INT AUTO_INCREMENT PRIMARY KEY,
+    order_id INT NOT NULL,
+    transaction_id VARCHAR(100),
+    amount DECIMAL(10,2),
+    payment_status ENUM('Paid', 'Unpaid', 'Refunded') DEFAULT 'Paid',
+    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+    
+    FOREIGN KEY (order_id) REFERENCES orders(id)
+);
+
+
+
+
+
+
+
+
+-- =========================================
+-- =========================================
+-- =========================================
+-- =========================================
+
+-- New tables/columns needed for the added frontend/backend features.
+-- Run these after the existing base schema is installed.
+
+CREATE TABLE IF NOT EXISTS user_addresses (
+    id INT AUTO_INCREMENT PRIMARY KEY,
+    user_id INT NOT NULL,
+    label ENUM('Home', 'Office') DEFAULT 'Home',
+    recipient_name VARCHAR(150) NOT NULL,
+    phone_number VARCHAR(30) NOT NULL,
+    address_line TEXT NOT NULL,
+    city VARCHAR(100) NOT NULL,
+    area VARCHAR(100),
+    postal_code VARCHAR(20),
+    is_default TINYINT(1) DEFAULT 0,
+    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+    updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+    FOREIGN KEY (user_id) REFERENCES users(id) ON DELETE CASCADE
+);
+
+CREATE TABLE IF NOT EXISTS product_reviews (
+    id INT AUTO_INCREMENT PRIMARY KEY,
+    product_id INT NOT NULL,
+    user_id INT NOT NULL,
+    rating TINYINT NOT NULL,
+    title VARCHAR(160),
+    comment TEXT NOT NULL,
+    status ENUM('Pending', 'Approved', 'Rejected') DEFAULT 'Approved',
+    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+    updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+    FOREIGN KEY (product_id) REFERENCES products(id) ON DELETE CASCADE,
+    FOREIGN KEY (user_id) REFERENCES users(id) ON DELETE CASCADE,
+    CHECK (rating BETWEEN 1 AND 5)
+);
+
+CREATE TABLE IF NOT EXISTS support_tickets (
+    id INT AUTO_INCREMENT PRIMARY KEY,
+    user_id INT NULL,
+    name VARCHAR(150) NOT NULL,
+    email VARCHAR(150),
+    phone_number VARCHAR(30) NOT NULL,
+    subject VARCHAR(180) NOT NULL,
+    message TEXT NOT NULL,
+    status ENUM('Open', 'In Progress', 'Resolved', 'Closed') DEFAULT 'Open',
+    admin_note TEXT,
+    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+    updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+    FOREIGN KEY (user_id) REFERENCES users(id) ON DELETE SET NULL
+);
+
+CREATE TABLE IF NOT EXISTS product_images (
+    id INT AUTO_INCREMENT PRIMARY KEY,
+    product_id INT NOT NULL,
+    image_url VARCHAR(500) NOT NULL,
+    alt_text VARCHAR(180),
+    sort_order INT DEFAULT 0,
+    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+    FOREIGN KEY (product_id) REFERENCES products(id) ON DELETE CASCADE
+);
+
+DROP PROCEDURE IF EXISTS add_column_if_missing;
+DROP PROCEDURE IF EXISTS add_index_if_missing;
+
+DELIMITER $$
+
+CREATE PROCEDURE add_column_if_missing(
+    IN table_name_value VARCHAR(64),
+    IN column_name_value VARCHAR(64),
+    IN column_definition_value TEXT
+)
+BEGIN
+    IF NOT EXISTS (
+        SELECT 1
+        FROM information_schema.COLUMNS
+        WHERE TABLE_SCHEMA = DATABASE()
+          AND TABLE_NAME = table_name_value
+          AND COLUMN_NAME = column_name_value
+    ) THEN
+        SET @ddl = CONCAT('ALTER TABLE `', table_name_value, '` ADD COLUMN `', column_name_value, '` ', column_definition_value);
+        PREPARE stmt FROM @ddl;
+        EXECUTE stmt;
+        DEALLOCATE PREPARE stmt;
+    END IF;
+END$$
+
+CREATE PROCEDURE add_index_if_missing(
+    IN table_name_value VARCHAR(64),
+    IN index_name_value VARCHAR(64),
+    IN index_definition_value TEXT
+)
+BEGIN
+    IF NOT EXISTS (
+        SELECT 1
+        FROM information_schema.STATISTICS
+        WHERE TABLE_SCHEMA = DATABASE()
+          AND TABLE_NAME = table_name_value
+          AND INDEX_NAME = index_name_value
+    ) THEN
+        SET @ddl = CONCAT('CREATE INDEX `', index_name_value, '` ON `', table_name_value, '` ', index_definition_value);
+        PREPARE stmt FROM @ddl;
+        EXECUTE stmt;
+        DEALLOCATE PREPARE stmt;
+    END IF;
+END$$
+
+DELIMITER ;
+
+CALL add_column_if_missing('orders', 'delivery_address_id', 'INT NULL');
+CALL add_column_if_missing('orders', 'delivery_name', 'VARCHAR(150) NULL');
+CALL add_column_if_missing('orders', 'delivery_phone', 'VARCHAR(30) NULL');
+CALL add_column_if_missing('orders', 'delivery_address', 'TEXT NULL');
+CALL add_column_if_missing('orders', 'delivery_city', 'VARCHAR(100) NULL');
+
+CALL add_index_if_missing('user_addresses', 'idx_user_addresses_user', '(user_id)');
+CALL add_index_if_missing('product_reviews', 'idx_product_reviews_product_status', '(product_id, status)');
+CALL add_index_if_missing('support_tickets', 'idx_support_tickets_status', '(status)');
+CALL add_index_if_missing('product_images', 'idx_product_images_product', '(product_id, sort_order)');
+
+DROP PROCEDURE IF EXISTS add_column_if_missing;
+DROP PROCEDURE IF EXISTS add_index_if_missing;
+
