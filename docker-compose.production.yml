@@ -145,6 +145,10 @@ services:
     depends_on:
       user-backend:
         condition: service_healthy
+    environment:
+      NEXT_PUBLIC_API_BASE_URL: ${NEXT_PUBLIC_USER_API_BASE_URL:?Set NEXT_PUBLIC_USER_API_BASE_URL in your production .env}
+      NEXT_PUBLIC_PRODUCT_IMAGE_BASE_URL: ${NEXT_PUBLIC_PRODUCT_IMAGE_BASE_URL:?Set NEXT_PUBLIC_PRODUCT_IMAGE_BASE_URL in your production .env}
+      NEXT_PUBLIC_SITE_URL: ${NEXT_PUBLIC_SITE_URL:?Set NEXT_PUBLIC_SITE_URL in your production .env}
     ports:
       - "${USER_FRONTEND_PORT:-3000}:3000"
     networks:

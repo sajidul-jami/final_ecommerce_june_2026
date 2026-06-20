@@ -1,4 +1,4 @@
-const API_BASE_URL = process.env.NEXT_PUBLIC_API_BASE_URL;
+import { API_BASE_URL, SITE_URL } from './lib/api';
 
 async function safeApi(path) {
   if (!API_BASE_URL) return [];
@@ -13,7 +13,6 @@ async function safeApi(path) {
 }
 
 export default async function sitemap() {
-  const siteUrl = process.env.NEXT_PUBLIC_SITE_URL || 'https://example.com';
   const [products, categories] = await Promise.all([
     safeApi('/products?limit=60'),
     safeApi('/categories'),
@@ -21,19 +20,19 @@ export default async function sitemap() {
 
   return [
     {
-      url: siteUrl,
+      url: SITE_URL,
       lastModified: new Date(),
       changeFrequency: 'daily',
       priority: 1,
     },
     ...categories.map((category) => ({
-      url: `${siteUrl}/?category=${encodeURIComponent(category.cat_code || category.cat_slug || category.id)}`,
+      url: `${SITE_URL}/?category=${encodeURIComponent(category.cat_code || category.cat_slug || category.id)}`,
       lastModified: category.created_at ? new Date(category.created_at) : new Date(),
       changeFrequency: 'weekly',
       priority: 0.8,
     })),
     ...products.map((product) => ({
-      url: `${siteUrl}/singleproduct/${product.id}`,
+      url: `${SITE_URL}/singleproduct/${product.id}`,
       lastModified: product.created_at ? new Date(product.created_at) : new Date(),
       changeFrequency: 'weekly',
       priority: 0.7,

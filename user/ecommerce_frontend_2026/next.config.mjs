@@ -1,5 +1,6 @@
 /** @type {import('next').NextConfig} */
-const productImageBaseUrl = process.env.NEXT_PUBLIC_PRODUCT_IMAGE_BASE_URL;
+const productImageBaseUrl =
+  process.env.NEXT_PUBLIC_PRODUCT_IMAGE_BASE_URL || 'http://localhost:9000/products/images/productsimg';
 const productImageUrl = productImageBaseUrl ? new URL(productImageBaseUrl) : null;
 
 const nextConfig = {

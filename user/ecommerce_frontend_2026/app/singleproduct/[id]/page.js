@@ -1,12 +1,6 @@
 import { notFound } from 'next/navigation';
 import ProductDetailsClient from './ProductDetailsClient';
-
-const API_BASE_URL = process.env.NEXT_PUBLIC_API_BASE_URL;
-const PRODUCT_IMAGE_BASE_URL = process.env.NEXT_PUBLIC_PRODUCT_IMAGE_BASE_URL;
-
-if (!PRODUCT_IMAGE_BASE_URL) {
-  throw new Error('Missing NEXT_PUBLIC_PRODUCT_IMAGE_BASE_URL environment variable');
-}
+import { API_BASE_URL, PRODUCT_IMAGE_BASE_URL } from '@/app/lib/api';
 
 async function getProduct(id, countView = false) {
   if (!API_BASE_URL) return null;

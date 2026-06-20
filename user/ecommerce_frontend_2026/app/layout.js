@@ -5,9 +5,10 @@ import Navber from "@/app/components/Navber.js"
 import Footer from "./components/Footer";
 import { CartProvider } from "@/app/context/CartContext";
 import { UserProvider } from './context/UserContext';
+import { SITE_URL } from './lib/api';
 
 export const metadata = {
-  metadataBase: new URL(process.env.NEXT_PUBLIC_SITE_URL || "https://example.com"),
+  metadataBase: new URL(SITE_URL),
   title: {
     default: "TechTrends BD - Quality Tech Products in Bangladesh",
     template: "%s | TechTrends BD",

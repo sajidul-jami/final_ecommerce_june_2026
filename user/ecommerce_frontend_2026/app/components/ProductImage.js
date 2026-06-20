@@ -2,13 +2,7 @@
 
 import Image from 'next/image';
 import { useState } from 'react';
-
-export const PRODUCT_IMAGE_BASE_URL =
-  process.env.NEXT_PUBLIC_PRODUCT_IMAGE_BASE_URL;
-
-if (!PRODUCT_IMAGE_BASE_URL) {
-  throw new Error('Missing NEXT_PUBLIC_PRODUCT_IMAGE_BASE_URL environment variable');
-}
+import { PRODUCT_IMAGE_BASE_URL } from '@/app/lib/api';
 
 export function getProductImageSrc(photo) {
   const imageName = photo || 'noimage.jpg';
