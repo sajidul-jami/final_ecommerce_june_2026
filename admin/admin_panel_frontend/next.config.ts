@@ -1,7 +1,9 @@
 /** @type {import('next').NextConfig} */
 const nextConfig = {
   output: 'standalone',
-  allowedDevOrigins: ['192.168.1.99', '192.168.1.146', 'localhost', '127.0.0.1'],
+  allowedDevOrigins: process.env.NEXT_ALLOWED_DEV_ORIGINS
+    ? process.env.NEXT_ALLOWED_DEV_ORIGINS.split(',').map((origin) => origin.trim()).filter(Boolean)
+    : [],
   images: {
     unoptimized: true,
     remotePatterns: [

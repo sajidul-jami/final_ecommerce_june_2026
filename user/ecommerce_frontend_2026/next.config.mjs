@@ -1,19 +1,26 @@
 /** @type {import('next').NextConfig} */
+const productImageBaseUrl = process.env.NEXT_PUBLIC_PRODUCT_IMAGE_BASE_URL;
+const productImageUrl = productImageBaseUrl ? new URL(productImageBaseUrl) : null;
+
 const nextConfig = {
   output: 'standalone',
-  allowedDevOrigins: ['192.168.1.99'],
+  allowedDevOrigins: process.env.NEXT_ALLOWED_DEV_ORIGINS
+    ? process.env.NEXT_ALLOWED_DEV_ORIGINS.split(',').map((origin) => origin.trim()).filter(Boolean)
+    : [],
 
   images: {
-    dangerouslyAllowLocalIP: true,
+    dangerouslyAllowLocalIP: process.env.NEXT_ALLOW_LOCAL_IMAGES === 'true',
 
-    remotePatterns: [
-      {
-        protocol: 'http',
-        hostname: '192.168.1.146',
-        port: '9000',
-        pathname: '/products/images/productsimg/**',
-      },
-    ],
+    remotePatterns: productImageUrl
+      ? [
+          {
+            protocol: productImageUrl.protocol.replace(':', ''),
+            hostname: productImageUrl.hostname,
+            port: productImageUrl.port,
+            pathname: `${productImageUrl.pathname.replace(/\/$/, '')}/**`,
+          },
+        ]
+      : [],
   },
 };
 

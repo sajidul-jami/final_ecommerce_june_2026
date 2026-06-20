@@ -4,13 +4,19 @@ const multer = require('multer')
 const Minio = require('minio')
 
 const upload = multer({ storage: multer.memoryStorage() })
+const requiredMinioEnv = ['MINIO_ENDPOINT', 'MINIO_ACCESS_KEY', 'MINIO_SECRET_KEY', 'MINIO_PUBLIC_URL']
+const missingMinioEnv = requiredMinioEnv.filter((key) => !process.env[key])
+
+if (missingMinioEnv.length > 0) {
+  throw new Error(`Missing required MinIO environment variable(s): ${missingMinioEnv.join(', ')}`)
+}
 
 const minioClient = new Minio.Client({
-  endPoint: process.env.MINIO_ENDPOINT || 'localhost',
+  endPoint: process.env.MINIO_ENDPOINT,
   port: Number(process.env.MINIO_PORT || 9000),
   useSSL: process.env.MINIO_USE_SSL === 'true',
-  accessKey: process.env.MINIO_ACCESS_KEY || 'admin',
-  secretKey: process.env.MINIO_SECRET_KEY || 'password123'
+  accessKey: process.env.MINIO_ACCESS_KEY,
+  secretKey: process.env.MINIO_SECRET_KEY
 })
 
 // =========================
@@ -35,7 +41,7 @@ router.post('/', upload.single('photo'), async (req, res) => {
       { 'Content-Type': file.mimetype }
     )
 
-    const publicBaseUrl = process.env.MINIO_PUBLIC_URL || 'http://localhost:9000'
+    const publicBaseUrl = process.env.MINIO_PUBLIC_URL
     const url = `${publicBaseUrl.replace(/\/$/, '')}/products/${fileName}`
 
     res.json({

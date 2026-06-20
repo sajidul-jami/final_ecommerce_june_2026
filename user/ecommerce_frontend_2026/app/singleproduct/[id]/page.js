@@ -1,6 +1,12 @@
 import { notFound } from 'next/navigation';
 import ProductDetailsClient from './ProductDetailsClient';
-import { API_BASE_URL, getProductImageSrc } from '@/app/lib/apiConfig';
+
+const API_BASE_URL = process.env.NEXT_PUBLIC_API_BASE_URL;
+const PRODUCT_IMAGE_BASE_URL = process.env.NEXT_PUBLIC_PRODUCT_IMAGE_BASE_URL;
+
+if (!PRODUCT_IMAGE_BASE_URL) {
+  throw new Error('Missing NEXT_PUBLIC_PRODUCT_IMAGE_BASE_URL environment variable');
+}
 
 async function getProduct(id, countView = false) {
   if (!API_BASE_URL) return null;
@@ -14,7 +20,8 @@ async function getProduct(id, countView = false) {
 }
 
 const stripHtml = (value = '') => String(value).replace(/<[^>]*>/g, '').replace(/\s+/g, ' ').trim();
-const productImageUrl = (photo) => (photo ? getProductImageSrc(photo) : undefined);
+const productImageUrl = (photo) =>
+  photo ? `${PRODUCT_IMAGE_BASE_URL.replace(/\/$/, '')}/${photo}` : undefined;
 
 export async function generateMetadata({ params }) {
   const { id } = await params;

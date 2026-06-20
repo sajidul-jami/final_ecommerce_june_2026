@@ -3,6 +3,7 @@ node_modules/
 
 # local env files
 .env*
+!.env.example
 
 # logs
 npm-debug.log*
