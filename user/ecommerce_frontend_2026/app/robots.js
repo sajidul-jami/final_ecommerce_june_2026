@@ -1,4 +1,4 @@
-import { SITE_URL } from '@/app/lib/apiConfig';
+import { SITE_URL } from './lib/api';
 
 export default function robots() {
   return {

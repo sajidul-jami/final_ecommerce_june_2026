@@ -5,7 +5,7 @@ import Navber from "@/app/components/Navber.js"
 import Footer from "./components/Footer";
 import { CartProvider } from "@/app/context/CartContext";
 import { UserProvider } from './context/UserContext';
-import { SITE_URL } from '@/app/lib/apiConfig';
+import { SITE_URL } from './lib/api';
 
 export const metadata = {
   metadataBase: new URL(SITE_URL),

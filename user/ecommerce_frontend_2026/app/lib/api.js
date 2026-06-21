@@ -1,6 +1,11 @@
-import { API_BASE_URL } from './apiConfig';
+export const API_BASE_URL =
+  process.env.NEXT_PUBLIC_API_BASE_URL || 'http://localhost:3005';
 
-export { API_BASE_URL };
+export const PRODUCT_IMAGE_BASE_URL =
+  process.env.NEXT_PUBLIC_PRODUCT_IMAGE_BASE_URL || 'http://localhost:9000/products/images/productsimg';
+
+export const SITE_URL =
+  process.env.NEXT_PUBLIC_SITE_URL || 'http://localhost:3000';
 
 export async function apiFetch(path, options = {}) {
   const response = await fetch(`${API_BASE_URL}${path}`, {

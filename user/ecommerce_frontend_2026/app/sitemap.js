@@ -1,6 +1,8 @@
-import { API_BASE_URL, SITE_URL } from '@/app/lib/apiConfig';
+import { API_BASE_URL, SITE_URL } from './lib/api';
 
 async function safeApi(path) {
+  if (!API_BASE_URL) return [];
+
   try {
     const response = await fetch(`${API_BASE_URL}${path}`, { cache: 'no-store' });
     if (!response.ok) return [];

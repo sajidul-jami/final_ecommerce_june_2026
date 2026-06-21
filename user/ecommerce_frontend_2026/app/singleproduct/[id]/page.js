@@ -1,6 +1,6 @@
 import { notFound } from 'next/navigation';
 import ProductDetailsClient from './ProductDetailsClient';
-import { API_BASE_URL, getProductImageSrc } from '@/app/lib/apiConfig';
+import { API_BASE_URL, PRODUCT_IMAGE_BASE_URL } from '@/app/lib/api';
 
 async function getProduct(id, countView = false) {
   if (!API_BASE_URL) return null;
@@ -14,7 +14,8 @@ async function getProduct(id, countView = false) {
 }
 
 const stripHtml = (value = '') => String(value).replace(/<[^>]*>/g, '').replace(/\s+/g, ' ').trim();
-const productImageUrl = (photo) => (photo ? getProductImageSrc(photo) : undefined);
+const productImageUrl = (photo) =>
+  photo ? `${PRODUCT_IMAGE_BASE_URL.replace(/\/$/, '')}/${photo}` : undefined;
 
 export async function generateMetadata({ params }) {
   const { id } = await params;

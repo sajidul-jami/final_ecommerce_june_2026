@@ -5,7 +5,7 @@ services:
     restart: unless-stopped
     environment:
       MYSQL_DATABASE: ${DB_NAME:-ecommerce}
-      MYSQL_ROOT_PASSWORD: ${MYSQL_ROOT_PASSWORD:-change_me_root_password}
+      MYSQL_ROOT_PASSWORD: ${MYSQL_ROOT_PASSWORD:?Set MYSQL_ROOT_PASSWORD in your production .env}
     ports:
       - "${MYSQL_PORT:-3306}:3306"
     volumes:
@@ -14,7 +14,7 @@ services:
     networks:
       - website2026
     healthcheck:
-      test: ["CMD", "mysqladmin", "ping", "-h", "127.0.0.1", "-uroot", "-p${MYSQL_ROOT_PASSWORD:-change_me_root_password}"]
+      test: ["CMD", "mysqladmin", "ping", "-h", "127.0.0.1", "-uroot", "-p${MYSQL_ROOT_PASSWORD:?Set MYSQL_ROOT_PASSWORD in your production .env}"]
       interval: 10s
       timeout: 5s
       retries: 10
@@ -26,8 +26,8 @@ services:
     restart: unless-stopped
     command: server /data --console-address ":9001"
     environment:
-      MINIO_ROOT_USER: ${MINIO_ACCESS_KEY:-admin}
-      MINIO_ROOT_PASSWORD: ${MINIO_SECRET_KEY:-password123}
+      MINIO_ROOT_USER: ${MINIO_ACCESS_KEY:?Set MINIO_ACCESS_KEY in your production .env}
+      MINIO_ROOT_PASSWORD: ${MINIO_SECRET_KEY:?Set MINIO_SECRET_KEY in your production .env}
     ports:
       - "${MINIO_PORT:-9000}:9000"
       - "${MINIO_CONSOLE_PORT:-9001}:9001"
@@ -51,8 +51,8 @@ services:
     environment:
       MINIO_HOST: minio
       MINIO_PORT: 9000
-      MINIO_ACCESS_KEY: ${MINIO_ACCESS_KEY:-admin}
-      MINIO_SECRET_KEY: ${MINIO_SECRET_KEY:-password123}
+      MINIO_ACCESS_KEY: ${MINIO_ACCESS_KEY:?Set MINIO_ACCESS_KEY in your production .env}
+      MINIO_SECRET_KEY: ${MINIO_SECRET_KEY:?Set MINIO_SECRET_KEY in your production .env}
       MINIO_BUCKET: products
     entrypoint: ["/bin/sh", "/scripts/minio-init.sh"]
     volumes:
@@ -75,11 +75,11 @@ services:
       NODE_ENV: production
       DB_HOST: mysql
       DB_USER: ${DB_USER:-root}
-      DB_PASSWORD: ${MYSQL_ROOT_PASSWORD:-change_me_root_password}
+      DB_PASSWORD: ${MYSQL_ROOT_PASSWORD:?Set MYSQL_ROOT_PASSWORD in your production .env}
       DB_NAME: ${DB_NAME:-ecommerce}
       DB_PORT: 3306
-      JWT_SECRET: ${USER_JWT_SECRET:-change_me_user_jwt_secret}
-      CLIENT_URL: ${NEXT_PUBLIC_SITE_URL:-http://localhost:3000}
+      JWT_SECRET: ${USER_JWT_SECRET:?Set USER_JWT_SECRET in your production .env}
+      CLIENT_URL: ${NEXT_PUBLIC_SITE_URL:?Set NEXT_PUBLIC_SITE_URL in your production .env}
       CORS_ORIGINS: ${USER_CORS_ORIGINS:-}
     ports:
       - "${USER_BACKEND_PORT:-3005}:3005"
@@ -106,21 +106,21 @@ services:
     environment:
       PORT: 3001
       NODE_ENV: production
-      JWT_SECRET: ${ADMIN_JWT_SECRET:-change_me_admin_jwt_secret}
-      CLIENT_URL: ${ADMIN_CLIENT_URL:-http://localhost:3002}
-      ADMIN_CLIENT_URL: ${ADMIN_CLIENT_URL:-http://localhost:3002}
+      JWT_SECRET: ${ADMIN_JWT_SECRET:?Set ADMIN_JWT_SECRET in your production .env}
+      CLIENT_URL: ${ADMIN_CLIENT_URL:?Set ADMIN_CLIENT_URL in your production .env}
+      ADMIN_CLIENT_URL: ${ADMIN_CLIENT_URL:?Set ADMIN_CLIENT_URL in your production .env}
       CORS_ORIGINS: ${ADMIN_CORS_ORIGINS:-}
       DB_HOST: mysql
       DB_USER: ${DB_USER:-root}
-      DB_PASSWORD: ${MYSQL_ROOT_PASSWORD:-change_me_root_password}
+      DB_PASSWORD: ${MYSQL_ROOT_PASSWORD:?Set MYSQL_ROOT_PASSWORD in your production .env}
       DB_NAME: ${DB_NAME:-ecommerce}
       DB_PORT: 3306
       MINIO_ENDPOINT: minio
       MINIO_PORT: 9000
       MINIO_USE_SSL: ${MINIO_USE_SSL:-false}
-      MINIO_ACCESS_KEY: ${MINIO_ACCESS_KEY:-admin}
-      MINIO_SECRET_KEY: ${MINIO_SECRET_KEY:-password123}
-      MINIO_PUBLIC_URL: ${MINIO_PUBLIC_URL:-http://localhost:9000}
+      MINIO_ACCESS_KEY: ${MINIO_ACCESS_KEY:?Set MINIO_ACCESS_KEY in your production .env}
+      MINIO_SECRET_KEY: ${MINIO_SECRET_KEY:?Set MINIO_SECRET_KEY in your production .env}
+      MINIO_PUBLIC_URL: ${MINIO_PUBLIC_URL:?Set MINIO_PUBLIC_URL in your production .env}
     ports:
       - "${ADMIN_BACKEND_PORT:-3001}:3001"
     networks:
@@ -136,15 +136,19 @@ services:
     build:
       context: ./user/ecommerce_frontend_2026
       args:
-        NEXT_PUBLIC_API_BASE_URL: ${NEXT_PUBLIC_USER_API_BASE_URL}
-        NEXT_PUBLIC_PRODUCT_IMAGE_BASE_URL: ${NEXT_PUBLIC_PRODUCT_IMAGE_BASE_URL}
-        NEXT_PUBLIC_SITE_URL: ${NEXT_PUBLIC_SITE_URL}
+        NEXT_PUBLIC_API_BASE_URL: ${NEXT_PUBLIC_USER_API_BASE_URL:?Set NEXT_PUBLIC_USER_API_BASE_URL in your production .env}
+        NEXT_PUBLIC_PRODUCT_IMAGE_BASE_URL: ${NEXT_PUBLIC_PRODUCT_IMAGE_BASE_URL:?Set NEXT_PUBLIC_PRODUCT_IMAGE_BASE_URL in your production .env}
+        NEXT_PUBLIC_SITE_URL: ${NEXT_PUBLIC_SITE_URL:?Set NEXT_PUBLIC_SITE_URL in your production .env}
     image: website2026/user-frontend:latest
     container_name: website2026-user-frontend
     restart: unless-stopped
     depends_on:
       user-backend:
         condition: service_healthy
+    environment:
+      NEXT_PUBLIC_API_BASE_URL: ${NEXT_PUBLIC_USER_API_BASE_URL:?Set NEXT_PUBLIC_USER_API_BASE_URL in your production .env}
+      NEXT_PUBLIC_PRODUCT_IMAGE_BASE_URL: ${NEXT_PUBLIC_PRODUCT_IMAGE_BASE_URL:?Set NEXT_PUBLIC_PRODUCT_IMAGE_BASE_URL in your production .env}
+      NEXT_PUBLIC_SITE_URL: ${NEXT_PUBLIC_SITE_URL:?Set NEXT_PUBLIC_SITE_URL in your production .env}
     ports:
       - "${USER_FRONTEND_PORT:-3000}:3000"
     networks:
@@ -160,9 +164,9 @@ services:
     build:
       context: ./admin/admin_panel_frontend
       args:
-        NEXT_PUBLIC_API_URL: ${NEXT_PUBLIC_ADMIN_API_URL}
-        NEXT_PUBLIC_UPLOAD_URL: ${NEXT_PUBLIC_ADMIN_UPLOAD_URL}
-        NEXT_PUBLIC_PRODUCT_IMAGE_BASE_URL: ${NEXT_PUBLIC_PRODUCT_IMAGE_BASE_URL}
+        NEXT_PUBLIC_API_URL: ${NEXT_PUBLIC_ADMIN_API_URL:?Set NEXT_PUBLIC_ADMIN_API_URL in your production .env}
+        NEXT_PUBLIC_UPLOAD_URL: ${NEXT_PUBLIC_ADMIN_UPLOAD_URL:?Set NEXT_PUBLIC_ADMIN_UPLOAD_URL in your production .env}
+        NEXT_PUBLIC_PRODUCT_IMAGE_BASE_URL: ${NEXT_PUBLIC_PRODUCT_IMAGE_BASE_URL:?Set NEXT_PUBLIC_PRODUCT_IMAGE_BASE_URL in your production .env}
     image: website2026/admin-frontend:latest
     container_name: website2026-admin-frontend
     restart: unless-stopped
