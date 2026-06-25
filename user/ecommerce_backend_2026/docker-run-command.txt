@@ -1,6 +1,11 @@
 docker build --no-cache -t user-ecommerce-backend-image .
 docker run -d \
   --name user-ecommerce-backend-container \
-  --env-file .env \
+  -e DB_HOST=localhost \
+  -e DB_USER=root \
+  -e DB_PASSWORD= \
+  -e DB_NAME=ecommerce \
+  -e DB_PORT=3306 \
+  -e JWT_SECRET=replace_this_with_a_long_random_secret \
   -p 3005:3005 \
   user-ecommerce-backend-image
