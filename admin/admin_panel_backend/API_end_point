@@ -24,3 +24,9 @@ POST	/api/categories/add
 PUT	/api/categories/update/:id
 DELETE	/api/categories/delete/:id
 
+
+admin
+
+==========================
+
+

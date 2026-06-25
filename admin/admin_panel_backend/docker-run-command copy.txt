@@ -1,0 +1,4 @@
+
+docker build -t admin-ecommerce-backend_2026 .
+  
+docker run -d -p 3001:3001 --env-file .env admin-ecommerce-backend_2026
