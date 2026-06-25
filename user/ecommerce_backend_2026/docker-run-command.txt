@@ -1,6 +1,6 @@
-docker build --no-cache -t user-ecommerce-backend .
+docker build --no-cache -t user-ecommerce-backend-image .
 docker run -d \
   --name user-ecommerce-backend-container \
   --env-file .env \
   -p 3005:3005 \
-  user-ecommerce-backend
+  user-ecommerce-backend-image
