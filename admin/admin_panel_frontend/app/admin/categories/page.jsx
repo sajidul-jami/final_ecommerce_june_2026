@@ -56,19 +56,29 @@ export default function CategoryPage() {
 
     // ================= INPUT =================
     const handleChange = (e) => {
-        const { name, value } = e.target
-        const selectedParent = name === 'parent_code'
-            ? categories.find((category) => category.cat_code === value)
-            : null
+    const { name, value } = e.target
+
+    if (name === 'parent_code') {
+        const selectedParent = categories.find(
+            (category) => category.cat_code === value
+        )
 
         setForm((prev) => ({
             ...prev,
-            [name]: value,
-            cat_code: selectedParent && !prev.cat_code
+            parent_code: value,
+            cat_code: selectedParent
                 ? `${selectedParent.cat_code}-`
-                : prev.cat_code
+                : ''
         }))
+
+        return
     }
+
+    setForm((prev) => ({
+        ...prev,
+        [name]: value
+    }))
+}
 
     // ================= SUBMIT =================
     const handleSubmit = async (e) => {
