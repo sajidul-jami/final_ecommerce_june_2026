@@ -1,0 +1,115 @@
+নতুন requirement:
+
+Brand Categories option
+Offers/Deals section
+Slider/Banner images
+Admin Support management
+Review management
+
+1. Brand Management (Best = new table)
+
+CREATE TABLE brands (
+    id INT AUTO_INCREMENT PRIMARY KEY,
+    name VARCHAR(100) NOT NULL UNIQUE,
+    slug VARCHAR(150),
+    logo VARCHAR(255),
+    status ENUM('Active','Inactive') DEFAULT 'Active',
+    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+);
+
+
+ALTER TABLE products
+ADD COLUMN brand_id INT NULL AFTER category_id;
+
+ALTER TABLE products
+ADD CONSTRAINT fk_product_brand
+FOREIGN KEY (brand_id) REFERENCES brands(id);
+
+2. Offers Section
+
+CREATE TABLE offers (
+    id INT AUTO_INCREMENT PRIMARY KEY,
+    title VARCHAR(150),
+    product_id INT NOT NULL,
+    discount_type ENUM('Flat','Percentage'),
+    discount_value DOUBLE NOT NULL,
+    start_date DATETIME,
+    end_date DATETIME,
+    status ENUM('Active','Inactive') DEFAULT 'Active',
+
+    FOREIGN KEY (product_id) REFERENCES products(id)
+);
+
+
+3. Slider / Banner Images
+
+CREATE TABLE sliders (
+    id INT AUTO_INCREMENT PRIMARY KEY,
+    title VARCHAR(150),
+    subtitle TEXT,
+    image_url VARCHAR(255) NOT NULL,
+    button_text VARCHAR(50),
+    button_link VARCHAR(255),
+    sort_order INT DEFAULT 0,
+    status ENUM('Active','Inactive') DEFAULT 'Active',
+    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+);
+
+
+4. Admin Support Management
+
+ALTER TABLE support_tickets
+ADD COLUMN assigned_admin INT NULL,
+ADD COLUMN priority ENUM('Low','Medium','High') DEFAULT 'Medium';
+
+
+ALTER TABLE support_tickets
+ADD CONSTRAINT fk_ticket_admin
+FOREIGN KEY (assigned_admin) REFERENCES admins(id);
+
+
+
+5. Review Management
+
+ALTER TABLE product_reviews
+ADD COLUMN admin_reply TEXT NULL,
+ADD COLUMN is_verified_purchase TINYINT(1) DEFAULT 0;
+
+
+6. Homepage Section Control (Highly recommended)
+
+CREATE TABLE homepage_sections (
+    id INT AUTO_INCREMENT PRIMARY KEY,
+    section_name VARCHAR(100) UNIQUE,
+    is_enabled TINYINT(1) DEFAULT 1,
+    sort_order INT DEFAULT 0
+);
+
+
+7. Product Tags (Optional but useful)
+
+
+CREATE TABLE product_tags (
+    id INT AUTO_INCREMENT PRIMARY KEY,
+    product_id INT,
+    tag_name VARCHAR(50),
+
+    FOREIGN KEY (product_id) REFERENCES products(id)
+);
+
+
+8. Social Media Links (Optional but useful)
+
+CREATE TABLE social_links (
+    id INT AUTO_INCREMENT PRIMARY KEY,
+    platform VARCHAR(80) NOT NULL,
+    url VARCHAR(255) NOT NULL,
+    icon VARCHAR(80),
+    sort_order INT DEFAULT 0,
+    status ENUM('Active','Inactive') DEFAULT 'Active',
+    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+);
+
+
+
+

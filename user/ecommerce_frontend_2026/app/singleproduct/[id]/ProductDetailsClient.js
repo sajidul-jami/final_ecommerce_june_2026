@@ -125,9 +125,31 @@ export default function ProductDetailsClient({ product }) {
               </button>
             </div>
 
-            <div className="mt-8 border-t border-slate-200 pt-5">
-              <h2 className="text-xl font-bold">Product Description</h2>
-              <p className="mt-2 leading-7 text-slate-600">{product.description || 'No description added yet.'}</p>
+          </div>
+        </section>
+
+        <section className="mt-5 rounded-lg bg-white p-4 shadow-sm lg:p-6">
+          <div className="grid gap-5 lg:grid-cols-[220px_1fr]">
+            <div>
+              <p className="text-sm font-semibold uppercase tracking-wide text-emerald-600">Product details</p>
+              <h2 className="mt-1 text-2xl font-black">Description</h2>
+            </div>
+            <div className="space-y-4">
+              <p className="leading-7 text-slate-600">{product.description || 'No description added yet.'}</p>
+              <div className="grid gap-3 text-sm sm:grid-cols-3">
+                <div className="rounded-md bg-slate-50 p-3">
+                  <p className="font-bold text-slate-950">Category</p>
+                  <p className="mt-1 text-slate-600">{product.category_name || 'Uncategorized'}</p>
+                </div>
+                <div className="rounded-md bg-slate-50 p-3">
+                  <p className="font-bold text-slate-950">SKU</p>
+                  <p className="mt-1 text-slate-600">{product.sku || `TTBD-${product.id}`}</p>
+                </div>
+                <div className="rounded-md bg-slate-50 p-3">
+                  <p className="font-bold text-slate-950">Availability</p>
+                  <p className="mt-1 text-slate-600">{inStock ? 'In stock' : 'Sold out'}</p>
+                </div>
+              </div>
             </div>
           </div>
         </section>
@@ -149,6 +171,11 @@ export default function ProductDetailsClient({ product }) {
                     </div>
                     {review.title && <p className="mt-2 text-sm font-bold text-slate-700">{review.title}</p>}
                     <p className="mt-1 text-sm leading-6 text-slate-600">{review.comment}</p>
+                    {review.admin_reply && (
+                      <p className="mt-3 rounded-md bg-emerald-50 p-3 text-sm leading-6 text-emerald-800">
+                        <span className="font-bold">Admin reply:</span> {review.admin_reply}
+                      </p>
+                    )}
                   </article>
                 ))}
               </div>

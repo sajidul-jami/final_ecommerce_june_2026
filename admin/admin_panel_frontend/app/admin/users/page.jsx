@@ -30,7 +30,7 @@ export default function UsersPage() {
     return customers.filter((customer) =>
       (customer.full_name || '').toLowerCase().includes(normalized) ||
       (customer.email || '').toLowerCase().includes(normalized) ||
-      (customer.phone || '').toLowerCase().includes(normalized) ||
+      (customer.phone_number || customer.phone || '').toLowerCase().includes(normalized) ||
       (customer.city || '').toLowerCase().includes(normalized)
     )
   }, [customers, query])
@@ -83,7 +83,7 @@ export default function UsersPage() {
               </div>
               <div className="mt-4 space-y-2 text-sm text-slate-600">
                 <p className="flex items-center gap-2"><Mail size={15} /> {customer.email || 'No email'}</p>
-                <p className="flex items-center gap-2"><Phone size={15} /> {customer.phone || 'No phone'}</p>
+                <p className="flex items-center gap-2"><Phone size={15} /> {customer.phone_number || customer.phone || 'No phone'}</p>
                 <p className="flex items-center gap-2"><MapPin size={15} /> {[customer.address, customer.city].filter(Boolean).join(', ') || 'No address'}</p>
               </div>
             </article>

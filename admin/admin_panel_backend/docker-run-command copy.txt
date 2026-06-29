@@ -1,8 +1,8 @@
 docker build -t admin-ecommerce-backend_2026-image .
 docker run -d \
   --name admin-ecommerce-backend_2026-container \
-  -e JWT_SECRET=MY_SUPER_SECRET_KEY
-  -e CLIENT_URL=http://localhost:3000,http://localhost:3002,http://127.0.0.1:3000,http://192.168.1.99:3000,http://192.168.1.99:3002, http://192.168.1.146:3002 \
+  -e JWT_SECRET=MY_SUPER_SECRET_KEY \
+  -e CLIENT_URL=http://localhost:3000,http://localhost:3002,http://127.0.0.1:3000,http://192.168.1.99:3000,http://192.168.1.99:3002,http://192.168.1.146:3002 \
   -e ADMIN_CLIENT_URL=http://localhost:3000,http://127.0.0.1:3000,http://192.168.1.99:3000,http://192.168.1.99:3002,http://192.168.1.146:3001 \
   -e DB_HOST=192.168.1.99 \
   -e DB_USER=root \

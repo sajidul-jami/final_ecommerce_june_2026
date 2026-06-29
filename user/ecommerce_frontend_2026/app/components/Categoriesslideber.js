@@ -95,7 +95,8 @@ function CategoryMenuItem({ category, activeCategory, depth = 0 }) {
   const isActive = activeCategory === category.cat_code;
 
   return (
-    <div className="group/item relative">
+    // depth অনুযায়ী আলাদা group নাম ব্যবহার করা হয়েছে যেন এক হোভারে সব না খুলে যায়
+    <div className={`relative ${depth === 0 ? 'group/depth0' : 'group/depth1'}`}>
       <Link
         href={`/?category=${encodeURIComponent(category.cat_code || slugify(category.name))}#shop`}
         className={`flex w-full items-center justify-between gap-3 rounded-md px-3 py-2 text-left text-sm font-semibold transition hover:bg-rose-50 hover:text-rose-600 ${
@@ -109,7 +110,16 @@ function CategoryMenuItem({ category, activeCategory, depth = 0 }) {
       </Link>
 
       {hasChildren && (
-        <div className="invisible absolute left-0 top-full z-30 mt-1 w-56 rounded-md border border-slate-200 bg-white p-2 opacity-0 shadow-xl transition group-hover/item:visible group-hover/item:opacity-100 lg:left-[calc(100%-1px)] lg:top-0 lg:mt-0">
+        <div 
+          className={`invisible absolute z-30 w-56 rounded-md border border-slate-200 bg-white p-2 opacity-0 shadow-xl transition-all duration-200
+            ${
+              // মেইন ক্যাটাগরি (depth 0) হলে হোভারে নিচে এবং ল্যাপটপে ডানপাশে খুলবে
+              depth === 0 
+                ? 'left-0 top-full mt-1 group-hover/depth0:visible group-hover/depth0:opacity-100 lg:left-[calc(100%-1px)] lg:top-0 lg:mt-0' 
+                : 'left-[calc(100%-1px)] top-0 group-hover/depth1:visible group-hover/depth1:opacity-100'
+            }
+          `}
+        >
           {category.children.slice(0, 12).map((child) => (
             <CategoryMenuItem
               key={child.id || child.cat_code || child.name}
@@ -140,6 +150,8 @@ export default function Categoriesslideber() {
 
     fetchCategories();
   }, []);
+
+
 
   const categoryTree = buildCategoryTree(categories);
 

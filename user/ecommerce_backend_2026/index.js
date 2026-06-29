@@ -99,19 +99,51 @@ const hydrateProductExtras = async (products) => {
   return products;
 };
 
+const optionalRows = async (res, query, params = []) => {
+  try {
+    const [rows] = await pool.query(query, params);
+    return rows;
+  } catch (error) {
+    if (isMissingTable(error) || error?.code === 'ER_BAD_FIELD_ERROR') {
+      return [];
+    }
+
+    throw error;
+  }
+};
+
 const getSafeProductRow = async (id) => {
-  const [rows] = await pool.query(
-    `SELECT p.*, c.name AS category_name, COALESCE(sold.total_sold, 0) AS sold_count
-     FROM products p
-     LEFT JOIN category c ON c.id = p.category_id
-     LEFT JOIN (
-       SELECT product_id, SUM(quantity) AS total_sold
-       FROM details
-       GROUP BY product_id
-     ) sold ON sold.product_id = p.id
-     WHERE p.id = ? AND (p.status IS NULL OR p.status = 'Active')`,
-    [id]
-  );
+  let rows;
+
+  try {
+    [rows] = await pool.query(
+      `SELECT p.*, c.name AS category_name, b.name AS brand_name, b.slug AS brand_slug, COALESCE(sold.total_sold, 0) AS sold_count
+       FROM products p
+       LEFT JOIN category c ON c.id = p.category_id
+       LEFT JOIN brands b ON b.id = p.brand_id
+       LEFT JOIN (
+         SELECT product_id, SUM(quantity) AS total_sold
+         FROM details
+         GROUP BY product_id
+       ) sold ON sold.product_id = p.id
+       WHERE p.id = ? AND (p.status IS NULL OR p.status = 'Active')`,
+      [id]
+    );
+  } catch (error) {
+    if (error?.code !== 'ER_BAD_FIELD_ERROR' && error?.code !== 'ER_NO_SUCH_TABLE') throw error;
+    [rows] = await pool.query(
+      `SELECT p.*, c.name AS category_name, COALESCE(sold.total_sold, 0) AS sold_count
+       FROM products p
+       LEFT JOIN category c ON c.id = p.category_id
+       LEFT JOIN (
+         SELECT product_id, SUM(quantity) AS total_sold
+         FROM details
+         GROUP BY product_id
+       ) sold ON sold.product_id = p.id
+       WHERE p.id = ? AND (p.status IS NULL OR p.status = 'Active')`,
+      [id]
+    );
+  }
 
   if (!rows[0]) return null;
   const product = normalizeProduct(rows[0]);
@@ -439,15 +471,107 @@ app.get('/categories', async (req, res) => {
   }
 });
 
+app.get('/brands', async (req, res) => {
+  try {
+    const rows = await optionalRows(
+      res,
+      `SELECT id, name, slug, logo
+       FROM brands
+       WHERE status = 'Active'
+       ORDER BY name ASC`
+    );
+    res.json(rows);
+  } catch (error) {
+    console.error('Fetch brands failed:', error);
+    res.status(500).json({ error: 'Error fetching brands from database' });
+  }
+});
+
+app.get('/sliders', async (req, res) => {
+  try {
+    const rows = await optionalRows(
+      res,
+      `SELECT id, title, subtitle, image_url, button_text, button_link, sort_order
+       FROM sliders
+       WHERE status = 'Active'
+       ORDER BY sort_order ASC, id DESC`
+    );
+    res.json(rows);
+  } catch (error) {
+    console.error('Fetch sliders failed:', error);
+    res.status(500).json({ error: 'Error fetching sliders from database' });
+  }
+});
+
+app.get('/offers', async (req, res) => {
+  try {
+    const rows = await optionalRows(
+      res,
+      `SELECT o.id, o.title, o.discount_type, o.discount_value, o.start_date, o.end_date,
+              p.*, c.name AS category_name, COALESCE(sold.total_sold, 0) AS sold_count
+       FROM offers o
+       INNER JOIN products p ON p.id = o.product_id
+       LEFT JOIN category c ON c.id = p.category_id
+       LEFT JOIN (
+         SELECT product_id, SUM(quantity) AS total_sold
+         FROM details
+         GROUP BY product_id
+       ) sold ON sold.product_id = p.id
+       WHERE o.status = 'Active'
+         AND (p.status IS NULL OR p.status = 'Active')
+         AND (o.start_date IS NULL OR o.start_date <= NOW())
+         AND (o.end_date IS NULL OR o.end_date >= NOW())
+       ORDER BY o.end_date ASC, o.id DESC
+       LIMIT 12`
+    );
+
+    const products = rows.map((row) =>
+      normalizeProduct({
+        ...row,
+        offer_id: row.id,
+        offer_title: row.title,
+        discount_type: row.discount_type,
+        discount_value: Number(row.discount_value || 0),
+      })
+    );
+    await hydrateProductExtras(products);
+    res.json(products);
+  } catch (error) {
+    console.error('Fetch offers failed:', error);
+    res.status(500).json({ error: 'Error fetching offers from database' });
+  }
+});
+
+app.get('/social-links', async (req, res) => {
+  try {
+    const rows = await optionalRows(
+      res,
+      `SELECT id, platform, url, icon, sort_order
+       FROM social_links
+       WHERE status = 'Active'
+       ORDER BY sort_order ASC, id ASC`
+    );
+    res.json(rows);
+  } catch (error) {
+    console.error('Fetch social links failed:', error);
+    res.status(500).json({ error: 'Error fetching social links from database' });
+  }
+});
+
 app.get('/products', async (req, res) => {
   try {
-    const { category, search, limit, sort = 'newest' } = req.query;
+    const { category, brand, search, limit, sort = 'newest' } = req.query;
     const where = ["(p.status IS NULL OR p.status = 'Active')"];
     const params = [];
 
     if (category) {
       where.push('(p.category_id = ? OR c.cat_slug = ? OR c.cat_code = ? OR c.cat_code LIKE ?)');
       params.push(category, category, category, `${category}-%`);
+    }
+
+    if (brand) {
+      where.push('(p.brand_id = ? OR b.slug = ? OR b.name = ?)');
+      params.push(brand, brand, brand);
     }
 
     if (search) {
@@ -466,19 +590,38 @@ app.get('/products', async (req, res) => {
     };
     const orderSql = sortOptions[sort] || sortOptions.newest;
 
-    const [rows] = await pool.query(
-      `SELECT p.*, c.name AS category_name, COALESCE(sold.total_sold, 0) AS sold_count
-       FROM products p
-       LEFT JOIN category c ON c.id = p.category_id
-       LEFT JOIN (
-         SELECT product_id, SUM(quantity) AS total_sold
-         FROM details
-         GROUP BY product_id
-       ) sold ON sold.product_id = p.id
-       WHERE ${where.join(' AND ')}
-       ORDER BY ${orderSql}${limitSql}`,
-      params
-    );
+    let rows;
+    try {
+      [rows] = await pool.query(
+        `SELECT p.*, c.name AS category_name, b.name AS brand_name, b.slug AS brand_slug, COALESCE(sold.total_sold, 0) AS sold_count
+         FROM products p
+         LEFT JOIN category c ON c.id = p.category_id
+         LEFT JOIN brands b ON b.id = p.brand_id
+         LEFT JOIN (
+           SELECT product_id, SUM(quantity) AS total_sold
+           FROM details
+           GROUP BY product_id
+         ) sold ON sold.product_id = p.id
+         WHERE ${where.join(' AND ')}
+         ORDER BY ${orderSql}${limitSql}`,
+        params
+      );
+    } catch (error) {
+      if ((error?.code !== 'ER_BAD_FIELD_ERROR' && error?.code !== 'ER_NO_SUCH_TABLE') || brand) throw error;
+      [rows] = await pool.query(
+        `SELECT p.*, c.name AS category_name, COALESCE(sold.total_sold, 0) AS sold_count
+         FROM products p
+         LEFT JOIN category c ON c.id = p.category_id
+         LEFT JOIN (
+           SELECT product_id, SUM(quantity) AS total_sold
+           FROM details
+           GROUP BY product_id
+         ) sold ON sold.product_id = p.id
+         WHERE ${where.join(' AND ')}
+         ORDER BY ${orderSql}${limitSql}`,
+        params
+      );
+    }
 
     const products = rows.map(normalizeProduct);
     await hydrateProductExtras(products);
@@ -516,15 +659,29 @@ app.get('/products/:productId/reviews', async (req, res) => {
       return res.status(400).json({ error: 'Valid product id is required' });
     }
 
-    const [rows] = await pool.query(
-      `SELECT r.id, r.product_id, r.user_id, r.rating, r.title, r.comment, r.created_at,
-              COALESCE(u.full_name, u.user_name, 'Customer') AS reviewer_name
-       FROM product_reviews r
-       LEFT JOIN users u ON u.id = r.user_id
-       WHERE r.product_id = ? AND r.status = 'Approved'
-       ORDER BY r.created_at DESC, r.id DESC`,
-      [productId]
-    );
+    let rows;
+    try {
+      [rows] = await pool.query(
+        `SELECT r.id, r.product_id, r.user_id, r.rating, r.title, r.comment, r.admin_reply, r.is_verified_purchase, r.created_at,
+                COALESCE(u.full_name, u.user_name, 'Customer') AS reviewer_name
+         FROM product_reviews r
+         LEFT JOIN users u ON u.id = r.user_id
+         WHERE r.product_id = ? AND r.status = 'Approved'
+         ORDER BY r.created_at DESC, r.id DESC`,
+        [productId]
+      );
+    } catch (error) {
+      if (error?.code !== 'ER_BAD_FIELD_ERROR') throw error;
+      [rows] = await pool.query(
+        `SELECT r.id, r.product_id, r.user_id, r.rating, r.title, r.comment, r.created_at,
+                COALESCE(u.full_name, u.user_name, 'Customer') AS reviewer_name
+         FROM product_reviews r
+         LEFT JOIN users u ON u.id = r.user_id
+         WHERE r.product_id = ? AND r.status = 'Approved'
+         ORDER BY r.created_at DESC, r.id DESC`,
+        [productId]
+      );
+    }
 
     res.json(rows);
   } catch (error) {

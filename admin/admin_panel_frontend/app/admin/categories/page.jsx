@@ -57,9 +57,16 @@ export default function CategoryPage() {
     // ================= INPUT =================
     const handleChange = (e) => {
         const { name, value } = e.target
+        const selectedParent = name === 'parent_code'
+            ? categories.find((category) => category.cat_code === value)
+            : null
+
         setForm((prev) => ({
             ...prev,
-            [name]: value
+            [name]: value,
+            cat_code: selectedParent && !prev.cat_code
+                ? `${selectedParent.cat_code}-`
+                : prev.cat_code
         }))
     }
 
@@ -230,13 +237,19 @@ export default function CategoryPage() {
                         className="border p-2 w-full"
                     />
 
-                    <input
+                    <select
                         name="parent_code"
                         value={form.parent_code}
                         onChange={handleChange}
-                        placeholder="Parent Code (optional)"
                         className="border p-2 w-full"
-                    />
+                    >
+                        <option value="">No parent category</option>
+                        {categories.map((category) => (
+                            <option key={category.id} value={category.cat_code}>
+                                {category.name} ({category.cat_code})
+                            </option>
+                        ))}
+                    </select>
 
                     <button
                         disabled={saving}

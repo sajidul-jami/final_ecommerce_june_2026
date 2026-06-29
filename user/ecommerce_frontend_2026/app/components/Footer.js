@@ -1,4 +1,5 @@
 import Link from 'next/link';
+import SocialLinks from './SocialLinks';
 
 export default function Footer() {
   return (
@@ -18,6 +19,7 @@ export default function Footer() {
           <Link href="/help_support" className="mt-3 inline-block font-bold text-rose-600 hover:text-slate-950">
             Help & Support
           </Link>
+          <SocialLinks />
         </div>
         <form className="flex flex-col gap-2 sm:flex-row md:justify-end">
           <input

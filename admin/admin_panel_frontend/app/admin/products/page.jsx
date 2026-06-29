@@ -4,6 +4,8 @@ import { useEffect, useMemo, useState } from 'react'
 import Image from 'next/image'
 import { PackagePlus, Pencil, Search, Trash2, Upload, X } from 'lucide-react'
 import { addProduct, deleteProduct, getProducts, updateProduct } from '@/services/productService'
+import { getCategories } from '@/services/categoryService'
+import { getBrands } from '@/services/contentService'
 import { PRODUCT_IMAGE_BASE_URL } from '@/lib/apiConfig'
 import { uploadProductImage } from '@/lib/upload'
 
@@ -11,6 +13,7 @@ const IMAGE_BASE = PRODUCT_IMAGE_BASE_URL
 
 const emptyProduct = {
   category_id: '',
+  brand_id: '',
   name: '',
   sku: '',
   price: '',
@@ -28,6 +31,8 @@ const money = (value) =>
 
 export default function ProductsPage() {
   const [products, setProducts] = useState([])
+  const [categories, setCategories] = useState([])
+  const [brands, setBrands] = useState([])
   const [form, setForm] = useState(emptyProduct)
   const [query, setQuery] = useState('')
   const [loading, setLoading] = useState(true)
@@ -48,9 +53,33 @@ export default function ProductsPage() {
     }
   }
 
+  const loadCategories = async () => {
+    try {
+      setCategories(await getCategories())
+    } catch {
+      setCategories([])
+    }
+  }
+
+  const loadBrands = async () => {
+    try {
+      setBrands(await getBrands())
+    } catch {
+      setBrands([])
+    }
+  }
+
   useEffect(() => {
     loadProducts()
+    loadCategories()
+    loadBrands()
   }, [])
+
+  const categoryNameById = useMemo(() => {
+    const map = new Map()
+    categories.forEach((category) => map.set(Number(category.id), category))
+    return map
+  }, [categories])
 
   const filteredProducts = useMemo(() => {
     const q = query.toLowerCase()
@@ -95,6 +124,7 @@ export default function ProductsPage() {
         name: form.name.trim(),
         sku: form.sku?.trim() || null,
         category_id: Number(form.category_id),
+        brand_id: form.brand_id ? Number(form.brand_id) : null,
         price: Number(form.price),
         quantity: Number(form.quantity || 0),
         description: form.description,
@@ -122,6 +152,7 @@ export default function ProductsPage() {
     setEditId(product.id)
     setForm({
       category_id: product.category_id || '',
+      brand_id: product.brand_id || '',
       name: product.name || '',
       sku: product.sku || '',
       price: product.price || '',
@@ -200,6 +231,7 @@ export default function ProductsPage() {
                   <th className="px-3 py-3">Product</th>
                   <th className="px-3 py-3">SKU</th>
                   <th className="px-3 py-3">Category</th>
+                  <th className="px-3 py-3">Brand</th>
                   <th className="px-3 py-3">Price</th>
                   <th className="px-3 py-3">Qty</th>
                   <th className="px-3 py-3 text-right">Action</th>
@@ -209,7 +241,7 @@ export default function ProductsPage() {
               <tbody>
                 {loading ? (
                   <tr>
-                    <td colSpan="6" className="p-5 text-center">
+                    <td colSpan="7" className="p-5 text-center">
                       Loading...
                     </td>
                   </tr>
@@ -236,7 +268,10 @@ export default function ProductsPage() {
                       </td>
 
                       <td className="px-3 py-3">{p.sku}</td>
-                      <td className="px-3 py-3">#{p.category_id}</td>
+                      <td className="px-3 py-3">
+                        {categoryNameById.get(Number(p.category_id))?.name || `#${p.category_id}`}
+                      </td>
+                      <td className="px-3 py-3">{p.brand_name || '-'}</td>
                       <td className="px-3 py-3">{money(p.price)}</td>
                       <td className="px-3 py-3">{p.quantity}</td>
 
@@ -262,7 +297,7 @@ export default function ProductsPage() {
                   ))
                 ) : (
                   <tr>
-                    <td colSpan="6" className="p-5 text-center">
+                    <td colSpan="7" className="p-5 text-center">
                       No products
                     </td>
                   </tr>
@@ -295,7 +330,22 @@ export default function ProductsPage() {
         <form onSubmit={handleSubmit} className="space-y-3">
           <input name="name" value={form.name} onChange={handleChange} placeholder="Name" className="w-full border p-2" />
           <input name="sku" value={form.sku} onChange={handleChange} placeholder="SKU" className="w-full border p-2" />
-          <input name="category_id" value={form.category_id} onChange={handleChange} placeholder="Category ID" className="w-full border p-2" />
+          <select name="category_id" value={form.category_id} onChange={handleChange} className="w-full border p-2">
+            <option value="">Select category</option>
+            {categories.map((category) => (
+              <option key={category.id} value={category.id}>
+                {category.name} ({category.cat_code})
+              </option>
+            ))}
+          </select>
+          <select name="brand_id" value={form.brand_id} onChange={handleChange} className="w-full border p-2">
+            <option value="">Select brand (optional)</option>
+            {brands.map((brand) => (
+              <option key={brand.id} value={brand.id}>
+                {brand.name}
+              </option>
+            ))}
+          </select>
           <input name="price" value={form.price} onChange={handleChange} placeholder="Price" className="w-full border p-2" />
           <input name="quantity" value={form.quantity} onChange={handleChange} placeholder="Quantity" className="w-full border p-2" />
 

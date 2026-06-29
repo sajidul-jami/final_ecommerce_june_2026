@@ -30,6 +30,7 @@ export default function ProductGallery({ product }) {
   }, [product.images, product.photo]);
   const [visibleImages, setVisibleImages] = useState(candidates);
   const [activeImage, setActiveImage] = useState(candidates[0]);
+  const [zoomOrigin, setZoomOrigin] = useState('50% 50%');
 
   const hideImage = (image) => {
     setVisibleImages((images) => {
@@ -41,16 +42,28 @@ export default function ProductGallery({ product }) {
     });
   };
 
+  const handlePointerMove = (event) => {
+    const rect = event.currentTarget.getBoundingClientRect();
+    const x = ((event.clientX - rect.left) / rect.width) * 100;
+    const y = ((event.clientY - rect.top) / rect.height) * 100;
+    setZoomOrigin(`${Math.min(Math.max(x, 0), 100)}% ${Math.min(Math.max(y, 0), 100)}%`);
+  };
+
   return (
     <div className="space-y-3">
-      <div className="group relative aspect-square overflow-hidden rounded-lg bg-slate-100">
+      <div
+        className="group relative aspect-square overflow-hidden rounded-lg bg-slate-100"
+        onPointerMove={handlePointerMove}
+        onPointerLeave={() => setZoomOrigin('50% 50%')}
+      >
         <Image
           src={getProductImageSrc(activeImage)}
           alt={`Image of ${product.name}`}
           fill
           priority
           sizes="(max-width: 1024px) 100vw, 420px"
-          className="object-contain p-5 transition duration-300 group-hover:scale-125"
+          className="object-contain p-5 transition duration-300 md:group-hover:scale-150"
+          style={{ transformOrigin: zoomOrigin }}
           onError={() => hideImage(activeImage)}
         />
       </div>

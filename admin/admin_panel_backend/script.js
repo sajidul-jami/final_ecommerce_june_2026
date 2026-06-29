@@ -108,6 +108,7 @@ const customerRoutes = require('./routes/admin_routes/customer_routes')
 const uploadRoutes = require('./routes/admin_routes/upload_routes')
 
 const categoryRoutes = require('./routes/admin_routes/category_routes')
+const contentRoutes = require('./routes/admin_routes/content_routes')
 
 app.use('/upload', uploadRoutes)
 
@@ -132,6 +133,8 @@ app.use('/api/orders', verifyToken, orderRoutes)
 app.use('/api/sales', verifyToken, salesRoutes)
 
 app.use('/api/customers', verifyToken, customerRoutes)
+
+app.use('/api/content', verifyToken, contentRoutes)
 
 app.get('/health', (req, res) => {
     res.json({ ok: true, service: 'admin-backend' })
