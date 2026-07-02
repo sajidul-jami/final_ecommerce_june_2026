@@ -3,7 +3,7 @@
 import Link from 'next/link';
 import { useRouter } from 'next/navigation';
 import { useCart } from '../context/CartContext';
-import { useUser } from '../context/UserContext';
+// import { useUser } from '../context/UserContext';
 import ProductImage from './ProductImage';
 
 const taka = new Intl.NumberFormat('en-BD', {
@@ -15,15 +15,16 @@ const taka = new Intl.NumberFormat('en-BD', {
 export default function Cards({ products = [] }) {
   const router = useRouter();
   const { addToCart, setCheckoutItems } = useCart();
-  const { user } = useUser();
+  // const { user } = useUser();
 
   const buyNow = (product) => {
     setCheckoutItems([{ ...product, stock_quantity: Number(product.quantity || 0), quantity: 1 }]);
 
-    if (!user) {
-      router.push('/login_signup/login?redirect=/checkout');
-      return;
-    }
+    // Old flow kept for reference. Direct buy now allows guest checkout.
+    // if (!user) {
+    //   router.push('/login_signup/login?redirect=/checkout');
+    //   return;
+    // }
 
     router.push('/checkout');
   };
@@ -81,7 +82,7 @@ export default function Cards({ products = [] }) {
                   onClick={() => addToCart({ ...product, stock_quantity: Number(product.quantity || 0) })}
                   className="rounded-md border border-slate-300 px-2 py-2 text-xs font-semibold text-slate-800 transition hover:border-slate-900 disabled:cursor-not-allowed disabled:opacity-50"
                 >
-                  Add
+                  Add to Cart
                 </button>
                 <button
                   type="button"

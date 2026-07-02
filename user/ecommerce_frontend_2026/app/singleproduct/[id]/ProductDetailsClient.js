@@ -38,10 +38,11 @@ export default function ProductDetailsClient({ product }) {
   const handleBuyNow = () => {
     setCheckoutItems([{ ...product, stock_quantity: Number(product.quantity || 0), quantity: 1 }]);
 
-    if (!user) {
-      router.push('/login_signup/login?redirect=/checkout');
-      return;
-    }
+    // Old flow kept for reference. Direct buy now allows guest checkout.
+    // if (!user) {
+    //   router.push('/login_signup/login?redirect=/checkout');
+    //   return;
+    // }
 
     router.push('/checkout');
   };

@@ -2,7 +2,7 @@
 
 import Link from 'next/link';
 import { useEffect, useRef, useState } from 'react';
-// import { useRouter } from 'next/navigation';
+import { useRouter } from 'next/navigation';
 import { useCart } from '../context/CartContext';
 import { useUser } from '../context/UserContext';
 import { apiFetch } from '../lib/api';
@@ -35,7 +35,7 @@ export default function CartPage() {
   const [isSubmittingOrder, setIsSubmittingOrder] = useState(false);
   const [successOrderId, setSuccessOrderId] = useState('');
   const hasInitializedSelection = useRef(false);
-  // const router = useRouter();
+  const router = useRouter();
 
   useEffect(() => {
     const cartIds = cart.map((item) => Number(item.id));
@@ -174,6 +174,11 @@ export default function CartPage() {
     setSuccessOrderId('');
   };
 
+  const continueShopping = () => {
+    closeCheckout();
+    router.push('/');
+  };
+
   return (
     <main className="min-h-screen bg-slate-50 px-3 py-6 text-slate-950 sm:px-5">
       <div className="mx-auto max-w-6xl">
@@ -306,7 +311,7 @@ export default function CartPage() {
                 <p className="mt-2 text-slate-600">Your order ID is #{successOrderId}. We will contact you soon.</p>
                 <button
                   type="button"
-                  onClick={closeCheckout}
+                  onClick={continueShopping}
                   className="mt-6 rounded-md bg-slate-950 px-5 py-3 font-bold text-white transition hover:bg-rose-600"
                 >
                   Continue Shopping
@@ -336,7 +341,7 @@ export default function CartPage() {
 
                   <div className="grid gap-4 sm:grid-cols-2">
                     <label className="text-sm font-semibold text-slate-700">
-                      Full name
+                      Full name <span className="text-rose-600">*</span>
                       <input
                         name="full_name"
                         value={checkoutForm.full_name}
@@ -346,7 +351,7 @@ export default function CartPage() {
                       />
                     </label>
                     <label className="text-sm font-semibold text-slate-700">
-                      Phone number
+                      Phone number <span className="text-rose-600">*</span>
                       <input
                         name="phone_number"
                         value={checkoutForm.phone_number}
@@ -356,7 +361,7 @@ export default function CartPage() {
                       />
                     </label>
                     <label className="text-sm font-semibold text-slate-700">
-                      Email optional
+                      Email
                       <input
                         name="email"
                         type="email"
@@ -366,7 +371,7 @@ export default function CartPage() {
                       />
                     </label>
                     <label className="text-sm font-semibold text-slate-700">
-                      City
+                      City <span className="text-rose-600">*</span>
                       <input
                         name="city"
                         value={checkoutForm.city}
@@ -376,7 +381,7 @@ export default function CartPage() {
                       />
                     </label>
                     <label className="text-sm font-semibold text-slate-700">
-                      Area optional
+                      Area
                       <input
                         name="area"
                         value={checkoutForm.area}
@@ -398,7 +403,7 @@ export default function CartPage() {
                       </select>
                     </label>
                     <label className="text-sm font-semibold text-slate-700 sm:col-span-2">
-                      Delivery address
+                      Delivery address <span className="text-rose-600">*</span>
                       <textarea
                         name="address"
                         value={checkoutForm.address}
@@ -408,7 +413,7 @@ export default function CartPage() {
                       />
                     </label>
                     <label className="text-sm font-semibold text-slate-700 sm:col-span-2">
-                      Order notes optional
+                      Order notes
                       <textarea
                         name="notes"
                         value={checkoutForm.notes}
