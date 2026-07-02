@@ -1,7 +1,7 @@
 'use client';
 
 import Link from 'next/link';
-import { useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import { useRouter } from 'next/navigation';
 import { useCart } from '../context/CartContext';
 import { useUser } from '../context/UserContext';
@@ -17,7 +17,28 @@ export default function CartPage() {
   const { cart, addToCart, decreaseQuantity, removeFromCart, setCheckoutItems } = useCart();
   const { user } = useUser();
   const [selectedItems, setSelectedItems] = useState([]);
+  const hasInitializedSelection = useRef(false);
   const router = useRouter();
+
+  useEffect(() => {
+    const cartIds = cart.map((item) => Number(item.id));
+
+    if (cartIds.length === 0) {
+      hasInitializedSelection.current = false;
+      setSelectedItems([]);
+      return;
+    }
+
+    setSelectedItems((items) => {
+      if (!hasInitializedSelection.current) {
+        hasInitializedSelection.current = true;
+        return cartIds;
+      }
+
+      const availableIds = new Set(cartIds);
+      return items.filter((id) => availableIds.has(id));
+    });
+  }, [cart]);
 
   const toggleItemSelection = (itemId) => {
     const numericId = Number(itemId);
