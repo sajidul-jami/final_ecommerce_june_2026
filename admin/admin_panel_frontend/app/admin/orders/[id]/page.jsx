@@ -70,6 +70,16 @@ export default function OrderDetailsPage({ params }) {
                 {[order.phone, order.address].filter(Boolean).join(' · ')}
               </p>
             )}
+            {(order.delivery_city || order.delivery_area || order.order_notes || order.checkout_type === 'guest') && (
+              <p className="mt-1 text-sm text-slate-500">
+                {[
+                  order.checkout_type === 'guest' ? 'Guest checkout' : '',
+                  order.delivery_city,
+                  order.delivery_area,
+                  order.order_notes,
+                ].filter(Boolean).join(' · ')}
+              </p>
+            )}
             {order.created_at && (
               <p className="mt-1 text-xs text-slate-400">
                 {new Date(order.created_at).toLocaleString()}

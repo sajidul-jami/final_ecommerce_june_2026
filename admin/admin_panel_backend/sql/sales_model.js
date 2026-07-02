@@ -22,7 +22,7 @@ const getRecentSales = (callback) => {
     db.query(`
         SELECT 
             orders.id,
-            users.full_name,
+            COALESCE(users.full_name, users.user_name, orders.delivery_name, 'Guest customer') AS full_name,
             orders.total_amount,
             orders.created_at
         FROM orders

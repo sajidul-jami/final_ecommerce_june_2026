@@ -9,7 +9,7 @@ const getAllOrders = (callback) => {
     const query = `
         SELECT 
             orders.id,
-            users.full_name,
+            COALESCE(users.full_name, users.user_name, orders.delivery_name, 'Guest customer') AS full_name,
             orders.total_amount,
             orders.payment_method,
             orders.order_status,
@@ -32,10 +32,14 @@ const getOrderById = (id, callback) => {
     const query = `
         SELECT
             o.id AS order_id,
-            COALESCE(u.full_name, u.user_name) AS full_name,
-            u.email,
-            u.phone_number AS phone,
-            u.address,
+            COALESCE(u.full_name, u.user_name, o.delivery_name, 'Guest customer') AS full_name,
+            COALESCE(u.email, o.delivery_email) AS email,
+            COALESCE(u.phone_number, o.delivery_phone) AS phone,
+            COALESCE(u.address, o.delivery_address) AS address,
+            o.delivery_city,
+            o.delivery_area,
+            o.order_notes,
+            o.checkout_type,
             o.total_amount,
             o.payment_method,
             o.order_status,

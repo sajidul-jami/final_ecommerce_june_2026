@@ -1,6 +1,7 @@
 'use client';
 
 import { useEffect, useMemo, useState } from 'react';
+import Link from 'next/link';
 import { useRouter } from 'next/navigation';
 import { useUser } from '../context/UserContext';
 import { useCart } from '../context/CartContext';
@@ -19,25 +20,34 @@ export default function CheckoutPage() {
   const { getCheckoutItems, clearCartItems } = useCart();
   const [products, setProducts] = useState([]);
   const [paymentMethod, setPaymentMethod] = useState('Cash On Delivery');
-  const [form, setForm] = useState({ full_name: '', phone_number: '', address: '', city: '' });
+  const [form, setForm] = useState({ full_name: '', phone_number: '', email: '', address: '', city: '', area: '', notes: '' });
   const [addresses, setAddresses] = useState([]);
   const [selectedAddressId, setSelectedAddressId] = useState('');
   const [submitting, setSubmitting] = useState(false);
   const [error, setError] = useState('');
 
   useEffect(() => {
-    if (!user) {
-      router.push('/login_signup/login?redirect=/checkout');
-      return;
-    }
+    // Old flow kept for reference. Checkout now supports guest orders.
+    // if (!user) {
+    //   router.push('/login_signup/login?redirect=/checkout');
+    //   return;
+    // }
 
     setProducts(getCheckoutItems());
     setForm({
-      full_name: user.full_name || user.user_name || '',
-      phone_number: user.phone_number || '',
-      address: user.address || user.location || '',
-      city: user.city || '',
+      full_name: user?.full_name || user?.user_name || '',
+      phone_number: user?.phone_number || '',
+      email: user?.email || '',
+      address: user?.address || user?.location || '',
+      city: user?.city || '',
+      area: '',
+      notes: '',
     });
+
+    if (!user) {
+      setAddresses([]);
+      return;
+    }
 
     apiFetch(`/users/${user.id}/addresses`)
       .then((data) => {
@@ -50,8 +60,11 @@ export default function CheckoutPage() {
           setForm({
             full_name: defaultAddress.recipient_name || user.full_name || user.user_name || '',
             phone_number: defaultAddress.phone_number || user.phone_number || '',
+            email: user.email || '',
             address: defaultAddress.address_line || '',
             city: defaultAddress.city || '',
+            area: defaultAddress.area || '',
+            notes: '',
           });
         }
       })
@@ -76,8 +89,11 @@ export default function CheckoutPage() {
       setForm({
         full_name: address.recipient_name || form.full_name,
         phone_number: address.phone_number || form.phone_number,
+        email: form.email,
         address: address.address_line || '',
         city: address.city || '',
+        area: address.area || '',
+        notes: form.notes,
       });
     }
   };
@@ -99,33 +115,38 @@ export default function CheckoutPage() {
     setSubmitting(true);
 
     try {
-      const updatedUser = await apiFetch('/update-user', {
-        method: 'POST',
-        body: JSON.stringify({
-          id: user.id,
-          full_name: form.full_name,
-          name: form.full_name,
-          phone_number: form.phone_number,
-          address: form.address,
-          location: form.address,
-          city: form.city,
-        }),
-      });
+      if (user) {
+        const updatedUser = await apiFetch('/update-user', {
+          method: 'POST',
+          body: JSON.stringify({
+            id: user.id,
+            full_name: form.full_name,
+            name: form.full_name,
+            phone_number: form.phone_number,
+            address: form.address,
+            location: form.address,
+            city: form.city,
+          }),
+        });
 
-      if (updatedUser.user) {
-        login(updatedUser.user);
+        if (updatedUser.user) {
+          login(updatedUser.user);
+        }
       }
 
       const order = await apiFetch('/checkout', {
         method: 'POST',
         body: JSON.stringify({
-          user_id: user.id,
+          user_id: user?.id || null,
           payment_method: paymentMethod,
           delivery_address_id: selectedAddressId || null,
           delivery_name: form.full_name,
           delivery_phone: form.phone_number,
+          delivery_email: form.email,
           delivery_address: form.address,
           delivery_city: form.city,
+          delivery_area: form.area,
+          order_notes: form.notes,
           products: products.map((product) => ({
             id: product.id,
             quantity: product.quantity,
@@ -136,7 +157,7 @@ export default function CheckoutPage() {
       clearCartItems(products.map((product) => product.id));
       sessionStorage.removeItem('checkoutItems');
       alert(`Order placed successfully. Order ID: ${order.orderId}`);
-      router.push('/user_profile');
+      router.push(user ? '/user_profile' : '/cart');
     } catch (checkoutError) {
       setError(checkoutError.message || 'Checkout failed.');
     } finally {
@@ -144,7 +165,7 @@ export default function CheckoutPage() {
     }
   };
 
-  if (!user) return null;
+  // if (!user) return null;
 
   return (
     <main className="min-h-screen bg-slate-50 px-3 py-6 text-slate-950 sm:px-5">
@@ -152,6 +173,21 @@ export default function CheckoutPage() {
         <section className="rounded-lg bg-white p-5 shadow-sm">
           <p className="text-sm font-semibold uppercase tracking-wide text-rose-600">Final step</p>
           <h1 className="text-3xl font-black">Checkout</h1>
+
+          {!user && (
+            <div className="mt-5 rounded-lg border border-amber-200 bg-amber-50 p-4">
+              <p className="text-sm font-bold text-amber-900">Login is recommended, not required.</p>
+              <p className="mt-1 text-sm text-amber-800">
+                Continue as guest now, or login if you want saved address and profile order history.
+              </p>
+              <Link
+                href="/login_signup/login?redirect=/checkout"
+                className="mt-3 inline-flex rounded-md bg-amber-600 px-3 py-2 text-sm font-bold text-white transition hover:bg-amber-700"
+              >
+                Login
+              </Link>
+            </div>
+          )}
 
           {error && <p className="mt-4 rounded-md bg-rose-50 p-3 text-sm font-semibold text-rose-700">{error}</p>}
 
@@ -204,6 +240,16 @@ export default function CheckoutPage() {
               />
             </label>
             <label className="text-sm font-semibold text-slate-700">
+              Email optional
+              <input
+                name="email"
+                type="email"
+                value={form.email}
+                onChange={handleChange}
+                className="mt-1 w-full rounded-md border border-slate-300 px-3 py-2 text-slate-950 outline-none focus:border-slate-950"
+              />
+            </label>
+            <label className="text-sm font-semibold text-slate-700">
               City
               <input
                 name="city"
@@ -211,6 +257,15 @@ export default function CheckoutPage() {
                 onChange={handleChange}
                 className="mt-1 w-full rounded-md border border-slate-300 px-3 py-2 text-slate-950 outline-none focus:border-slate-950"
                 required
+              />
+            </label>
+            <label className="text-sm font-semibold text-slate-700">
+              Area optional
+              <input
+                name="area"
+                value={form.area}
+                onChange={handleChange}
+                className="mt-1 w-full rounded-md border border-slate-300 px-3 py-2 text-slate-950 outline-none focus:border-slate-950"
               />
             </label>
             <label className="text-sm font-semibold text-slate-700">
@@ -225,6 +280,15 @@ export default function CheckoutPage() {
                 <option>Nagad</option>
                 <option>Card</option>
               </select>
+            </label>
+            <label className="text-sm font-semibold text-slate-700 sm:col-span-2">
+              Order notes optional
+              <textarea
+                name="notes"
+                value={form.notes}
+                onChange={handleChange}
+                className="mt-1 min-h-20 w-full rounded-md border border-slate-300 px-3 py-2 text-slate-950 outline-none focus:border-slate-950"
+              />
             </label>
           </div>
         </section>
@@ -261,7 +325,7 @@ export default function CheckoutPage() {
             disabled={submitting || !products.length}
             className="mt-5 w-full rounded-md bg-emerald-600 px-4 py-3 font-bold text-white transition hover:bg-emerald-700 disabled:cursor-not-allowed disabled:opacity-60"
           >
-            {submitting ? 'Placing order...' : 'Confirm Order'}
+            {submitting ? 'Placing order...' : user ? 'Confirm Order' : 'Confirm Guest Order'}
           </button>
         </aside>
       </form>

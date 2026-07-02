@@ -4,7 +4,7 @@ import { useEffect, useState } from 'react';
 import Link from 'next/link';
 import Image from 'next/image';
 import { useRouter, useSearchParams } from 'next/navigation';
-import websitelogo from '@/public/images/websitelogo.jpeg';
+import websitelogo from '@/public/images/rupmohol_logo_final.png';
 import { useCart } from '../context/CartContext';
 import { useUser } from '../context/UserContext';
 
@@ -45,8 +45,8 @@ export default function Navbar() {
       <nav className="mx-auto flex max-w-7xl flex-col gap-3 px-3 py-3 sm:px-5 lg:flex-row lg:items-center lg:justify-between">
         <div className="flex items-center justify-between gap-3">
           <Link href="/" className="flex items-center gap-3">
-            <Image src={websitelogo} alt="TechTrends logo" className="h-12 w-28 rounded-md object-cover" priority />
-            <span className="hidden text-lg font-bold text-slate-950 sm:block">TechTrends BD</span>
+            <Image src={websitelogo} alt="websitelogo" className="h-auto w-28 object-cover" priority />
+            {/*<span className="hidden text-2xl font-bold tracking-wide text-pink-700 sm:block">রূপমহল</span>*/}
           </Link>
           <Link
             href="/cart"

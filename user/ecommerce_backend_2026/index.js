@@ -757,12 +757,22 @@ const checkoutHandler = async (req, res) => {
       delivery_address_id,
       delivery_name,
       delivery_phone,
+      delivery_email,
       delivery_address,
       delivery_city,
+      delivery_area,
+      order_notes,
     } = req.body;
 
-    if (!user_id || !Array.isArray(products) || products.length === 0) {
-      return res.status(400).json({ error: 'User and products are required' });
+    const customerId = user_id ? Number(user_id) : null;
+    const isGuestCheckout = !customerId;
+
+    if (!Array.isArray(products) || products.length === 0) {
+      return res.status(400).json({ error: 'Products are required' });
+    }
+
+    if (isGuestCheckout && (!delivery_name || !delivery_phone || !delivery_address || !delivery_city)) {
+      return res.status(400).json({ error: 'Name, phone, address and city are required for guest checkout' });
     }
 
     await connection.beginTransaction();
@@ -798,29 +808,46 @@ const checkoutHandler = async (req, res) => {
     }
 
     const [orderResult] = await connection.query(
-      'INSERT INTO orders (customer_id, total_amount, payment_method, order_status) VALUES (?, ?, ?, ?)',
-      [user_id, totalAmount, payment_method, 'Pending']
+      `INSERT INTO orders
+       (customer_id, total_amount, payment_method, order_status, delivery_address_id, delivery_name, delivery_phone, delivery_email, delivery_address, delivery_city, delivery_area, order_notes, checkout_type)
+       VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+      [
+        customerId,
+        totalAmount,
+        payment_method,
+        'Pending',
+        delivery_address_id || null,
+        delivery_name || null,
+        delivery_phone || null,
+        delivery_email || null,
+        delivery_address || null,
+        delivery_city || null,
+        delivery_area || null,
+        order_notes || null,
+        isGuestCheckout ? 'guest' : 'user',
+      ]
     );
 
     const orderId = orderResult.insertId;
 
-    try {
-      await connection.query(
-        `UPDATE orders
-         SET delivery_address_id = ?, delivery_name = ?, delivery_phone = ?, delivery_address = ?, delivery_city = ?
-         WHERE id = ?`,
-        [
-          delivery_address_id || null,
-          delivery_name || null,
-          delivery_phone || null,
-          delivery_address || null,
-          delivery_city || null,
-          orderId,
-        ]
-      );
-    } catch (error) {
-      if (error?.code !== 'ER_BAD_FIELD_ERROR') throw error;
-    }
+    // Delivery fields are now saved during insert. The old UPDATE path is kept here for reference.
+    // try {
+    //   await connection.query(
+    //     `UPDATE orders
+    //      SET delivery_address_id = ?, delivery_name = ?, delivery_phone = ?, delivery_address = ?, delivery_city = ?
+    //      WHERE id = ?`,
+    //     [
+    //       delivery_address_id || null,
+    //       delivery_name || null,
+    //       delivery_phone || null,
+    //       delivery_address || null,
+    //       delivery_city || null,
+    //       orderId,
+    //     ]
+    //   );
+    // } catch (error) {
+    //   if (error?.code !== 'ER_BAD_FIELD_ERROR') throw error;
+    // }
 
     for (const item of orderItems) {
       await connection.query(
@@ -838,7 +865,9 @@ const checkoutHandler = async (req, res) => {
       [orderId, `COD-${orderId}`, totalAmount, payment_method === 'Cash On Delivery' ? 'Unpaid' : 'Paid']
     );
 
-    await connection.query('DELETE FROM cart WHERE user_id = ?', [user_id]);
+    if (customerId) {
+      await connection.query('DELETE FROM cart WHERE user_id = ?', [customerId]);
+    }
     await connection.commit();
 
     res.status(201).json({
