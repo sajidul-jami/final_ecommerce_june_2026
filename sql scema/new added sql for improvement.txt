@@ -91,10 +91,12 @@ CREATE TABLE homepage_sections (
 
 CREATE TABLE product_tags (
     id INT AUTO_INCREMENT PRIMARY KEY,
-    product_id INT,
-    tag_name VARCHAR(50),
+    product_id INT NOT NULL,
+    tag_name VARCHAR(50) NOT NULL,
 
-    FOREIGN KEY (product_id) REFERENCES products(id)
+    UNIQUE KEY uq_product_tag (product_id, tag_name),
+    KEY idx_product_tags_name (tag_name),
+    FOREIGN KEY (product_id) REFERENCES products(id) ON DELETE CASCADE
 );
 
 

@@ -42,6 +42,105 @@ const normalizeProduct = (product) => ({
   images: Array.isArray(product.images) ? product.images : [],
 });
 
+const normalizeSearchTerm = (value = '') =>
+  String(value)
+    .toLowerCase()
+    .normalize('NFKD')
+    .replace(/[\u0300-\u036f]/g, '')
+    .replace(/[^a-z0-9]+/g, ' ')
+    .trim();
+
+const levenshteinDistance = (a, b) => {
+  if (a === b) return 0;
+  if (!a) return b.length;
+  if (!b) return a.length;
+
+  const previous = Array.from({ length: b.length + 1 }, (_, index) => index);
+  const current = new Array(b.length + 1);
+
+  for (let i = 1; i <= a.length; i += 1) {
+    current[0] = i;
+
+    for (let j = 1; j <= b.length; j += 1) {
+      const cost = a[i - 1] === b[j - 1] ? 0 : 1;
+      current[j] = Math.min(
+        current[j - 1] + 1,
+        previous[j] + 1,
+        previous[j - 1] + cost
+      );
+    }
+
+    for (let j = 0; j <= b.length; j += 1) previous[j] = current[j];
+  }
+
+  return previous[b.length];
+};
+
+const similarityScore = (query, value) => {
+  const normalizedQuery = normalizeSearchTerm(query);
+  const normalizedValue = normalizeSearchTerm(value);
+
+  if (!normalizedQuery || !normalizedValue) return 0;
+  if (normalizedValue === normalizedQuery) return 100;
+  if (normalizedValue.startsWith(normalizedQuery)) return 92;
+  if (normalizedValue.includes(normalizedQuery)) return 84;
+
+  const queryWords = normalizedQuery.split(' ').filter(Boolean);
+  const valueWords = normalizedValue.split(' ').filter(Boolean);
+  let best = 0;
+
+  for (const queryWord of queryWords) {
+    for (const valueWord of valueWords) {
+      if (valueWord === queryWord) best = Math.max(best, 100);
+      else if (valueWord.startsWith(queryWord)) best = Math.max(best, 90);
+      else if (valueWord.includes(queryWord)) best = Math.max(best, 82);
+      else {
+        const distance = levenshteinDistance(queryWord, valueWord);
+        const maxLength = Math.max(queryWord.length, valueWord.length);
+        const score = Math.round((1 - distance / maxLength) * 100);
+        best = Math.max(best, score);
+      }
+    }
+  }
+
+  return best;
+};
+
+const rankSearchRow = (row, search) => {
+  const fields = [
+    { type: 'name', value: row.name, weight: 1 },
+    { type: 'tag', value: row.tags, weight: 0.98 },
+    { type: 'sku', value: row.sku, weight: 0.95 },
+    { type: 'brand', value: row.brand_name, weight: 0.9 },
+    { type: 'category', value: row.category_name, weight: 0.86 },
+    { type: 'description', value: row.description, weight: 0.72 },
+  ];
+  let best = { score: 0, type: 'fuzzy' };
+
+  fields.forEach((field) => {
+    if (!field.value) return;
+    const score = Math.round(similarityScore(search, field.value) * field.weight);
+    if (score > best.score) {
+      best = { score, type: field.type };
+    }
+  });
+
+  const tagList = String(row.tags || '')
+    .split(',')
+    .map((tag) => tag.trim())
+    .filter(Boolean);
+  const matchedTag = tagList
+    .map((tag) => ({ tag, score: similarityScore(search, tag) }))
+    .sort((a, b) => b.score - a.score)[0];
+
+  return {
+    ...row,
+    search_score: Math.max(Number(row.sql_search_score || 0), best.score),
+    match_type: best.type,
+    matched_tag: matchedTag?.score >= 70 ? matchedTag.tag : null,
+  };
+};
+
 const isMissingTable = (error) =>
   error?.code === 'ER_NO_SUCH_TABLE' || /doesn't exist/i.test(error?.message || '');
 
@@ -574,13 +673,10 @@ app.get('/products', async (req, res) => {
       params.push(brand, brand, brand);
     }
 
-    if (search) {
-      where.push('(p.name LIKE ? OR p.description LIKE ? OR p.sku LIKE ? OR c.name LIKE ? OR c.cat_slug LIKE ? OR c.cat_code LIKE ?)');
-      params.push(`%${search}%`, `%${search}%`, `%${search}%`, `%${search}%`, `%${search}%`, `%${search}%`);
-    }
-
     const safeLimit = Math.min(Math.max(Number(limit || 0), 0), 60);
-    const limitSql = safeLimit ? ` LIMIT ${safeLimit}` : '';
+    const normalizedSearch = normalizeSearchTerm(search);
+    const candidateLimit = normalizedSearch ? Math.max(safeLimit || 0, 500) : safeLimit;
+    const limitSql = candidateLimit ? ` LIMIT ${candidateLimit}` : '';
     const sortOptions = {
       newest: 'p.created_at DESC, p.id DESC',
       best_selling: 'COALESCE(p.counter, 0) DESC, p.created_at DESC, p.id DESC',
@@ -588,28 +684,85 @@ app.get('/products', async (req, res) => {
       price_desc: 'p.price DESC, p.id DESC',
       name_asc: 'p.name ASC, p.id DESC',
     };
-    const orderSql = sortOptions[sort] || sortOptions.newest;
+    const sqlSearchScore = normalizedSearch
+      ? `(
+          CASE WHEN LOWER(p.name) = ? THEN 120 ELSE 0 END +
+          CASE WHEN LOWER(p.name) LIKE ? THEN 95 ELSE 0 END +
+          CASE WHEN LOWER(p.name) LIKE ? THEN 80 ELSE 0 END +
+          CASE WHEN LOWER(COALESCE(p.sku, '')) LIKE ? THEN 78 ELSE 0 END +
+          CASE WHEN LOWER(COALESCE(c.name, '')) LIKE ? THEN 68 ELSE 0 END +
+          CASE WHEN LOWER(COALESCE(b.name, '')) LIKE ? THEN 62 ELSE 0 END +
+          CASE WHEN LOWER(COALESCE(tags.tag_search_text, '')) LIKE ? THEN 88 ELSE 0 END +
+          CASE WHEN SOUNDEX(p.name) = SOUNDEX(?) THEN 45 ELSE 0 END
+        )`
+      : '0';
+    const sqlSearchParams = normalizedSearch
+      ? [
+          normalizedSearch,
+          `${normalizedSearch}%`,
+          `%${normalizedSearch}%`,
+          `%${normalizedSearch}%`,
+          `%${normalizedSearch}%`,
+          `%${normalizedSearch}%`,
+          `%${normalizedSearch}%`,
+          normalizedSearch,
+        ]
+      : [];
+    const orderSql = normalizedSearch
+      ? 'sql_search_score DESC, COALESCE(p.counter, 0) DESC, p.created_at DESC, p.id DESC'
+      : sortOptions[sort] || sortOptions.newest;
 
     let rows;
     try {
       [rows] = await pool.query(
-        `SELECT p.*, c.name AS category_name, b.name AS brand_name, b.slug AS brand_slug, COALESCE(sold.total_sold, 0) AS sold_count
+        `SELECT p.*, c.name AS category_name, b.name AS brand_name, b.slug AS brand_slug,
+                COALESCE(sold.total_sold, 0) AS sold_count,
+                tags.tags,
+                ${sqlSearchScore} AS sql_search_score
          FROM products p
          LEFT JOIN category c ON c.id = p.category_id
          LEFT JOIN brands b ON b.id = p.brand_id
          LEFT JOIN (
+           SELECT product_id,
+                  GROUP_CONCAT(DISTINCT tag_name ORDER BY tag_name SEPARATOR ', ') AS tags,
+                  GROUP_CONCAT(DISTINCT tag_name SEPARATOR ' ') AS tag_search_text
+           FROM product_tags
+           GROUP BY product_id
+         ) tags ON tags.product_id = p.id
+         LEFT JOIN (
            SELECT product_id, SUM(quantity) AS total_sold
            FROM details
            GROUP BY product_id
          ) sold ON sold.product_id = p.id
          WHERE ${where.join(' AND ')}
          ORDER BY ${orderSql}${limitSql}`,
-        params
+        [...sqlSearchParams, ...params]
       );
     } catch (error) {
       if ((error?.code !== 'ER_BAD_FIELD_ERROR' && error?.code !== 'ER_NO_SUCH_TABLE') || brand) throw error;
+      const fallbackSearchScore = normalizedSearch
+        ? `(
+            CASE WHEN LOWER(p.name) = ? THEN 120 ELSE 0 END +
+            CASE WHEN LOWER(p.name) LIKE ? THEN 95 ELSE 0 END +
+            CASE WHEN LOWER(p.name) LIKE ? THEN 80 ELSE 0 END +
+            CASE WHEN LOWER(COALESCE(p.sku, '')) LIKE ? THEN 78 ELSE 0 END +
+            CASE WHEN LOWER(COALESCE(c.name, '')) LIKE ? THEN 68 ELSE 0 END +
+            CASE WHEN SOUNDEX(p.name) = SOUNDEX(?) THEN 45 ELSE 0 END
+          )`
+        : '0';
+      const fallbackSearchParams = normalizedSearch
+        ? [
+            normalizedSearch,
+            `${normalizedSearch}%`,
+            `%${normalizedSearch}%`,
+            `%${normalizedSearch}%`,
+            `%${normalizedSearch}%`,
+            normalizedSearch,
+          ]
+        : [];
       [rows] = await pool.query(
-        `SELECT p.*, c.name AS category_name, COALESCE(sold.total_sold, 0) AS sold_count
+        `SELECT p.*, c.name AS category_name, COALESCE(sold.total_sold, 0) AS sold_count,
+                NULL AS tags, ${fallbackSearchScore} AS sql_search_score
          FROM products p
          LEFT JOIN category c ON c.id = p.category_id
          LEFT JOIN (
@@ -619,16 +772,126 @@ app.get('/products', async (req, res) => {
          ) sold ON sold.product_id = p.id
          WHERE ${where.join(' AND ')}
          ORDER BY ${orderSql}${limitSql}`,
-        params
+        [...fallbackSearchParams, ...params]
       );
     }
 
-    const products = rows.map(normalizeProduct);
+    const rankedRows = normalizedSearch
+      ? rows
+          .map((row) => rankSearchRow(row, normalizedSearch))
+          .filter((row) => row.search_score >= 58)
+          .sort((a, b) => b.search_score - a.search_score || Number(b.sold_count || 0) - Number(a.sold_count || 0))
+      : rows;
+    const products = rankedRows.slice(0, safeLimit || rankedRows.length).map(normalizeProduct);
     await hydrateProductExtras(products);
     res.json(products);
   } catch (error) {
     console.error('Fetch products failed:', error);
     res.status(500).json({ error: 'Error fetching products from database' });
+  }
+});
+
+app.get('/search-suggestions', async (req, res) => {
+  try {
+    const search = normalizeSearchTerm(req.query.q || req.query.search || '');
+    const safeLimit = Math.min(Math.max(Number(req.query.limit || 8), 1), 12);
+
+    if (!search) {
+      return res.json([]);
+    }
+
+    const like = `%${search}%`;
+    const startsWith = `${search}%`;
+    const scoreSql = `(
+      CASE WHEN LOWER(p.name) = ? THEN 120 ELSE 0 END +
+      CASE WHEN LOWER(p.name) LIKE ? THEN 95 ELSE 0 END +
+      CASE WHEN LOWER(p.name) LIKE ? THEN 80 ELSE 0 END +
+      CASE WHEN LOWER(COALESCE(p.sku, '')) LIKE ? THEN 78 ELSE 0 END +
+      CASE WHEN LOWER(COALESCE(c.name, '')) LIKE ? THEN 68 ELSE 0 END +
+      CASE WHEN LOWER(COALESCE(b.name, '')) LIKE ? THEN 62 ELSE 0 END +
+      CASE WHEN LOWER(COALESCE(tags.tag_search_text, '')) LIKE ? THEN 88 ELSE 0 END +
+      CASE WHEN SOUNDEX(p.name) = SOUNDEX(?) THEN 45 ELSE 0 END
+    )`;
+    const scoreParams = [search, startsWith, like, like, like, like, like, search];
+
+    let rows;
+    try {
+      [rows] = await pool.query(
+        `SELECT p.id, p.name, p.price, p.photo, p.sku,
+                c.name AS category_name, b.name AS brand_name,
+                COALESCE(sold.total_sold, 0) AS sold_count,
+                tags.tags,
+                ${scoreSql} AS sql_search_score
+         FROM products p
+         LEFT JOIN category c ON c.id = p.category_id
+         LEFT JOIN brands b ON b.id = p.brand_id
+         LEFT JOIN (
+           SELECT product_id,
+                  GROUP_CONCAT(DISTINCT tag_name ORDER BY tag_name SEPARATOR ', ') AS tags,
+                  GROUP_CONCAT(DISTINCT tag_name SEPARATOR ' ') AS tag_search_text
+           FROM product_tags
+           GROUP BY product_id
+         ) tags ON tags.product_id = p.id
+         LEFT JOIN (
+           SELECT product_id, SUM(quantity) AS total_sold
+           FROM details
+           GROUP BY product_id
+         ) sold ON sold.product_id = p.id
+         WHERE (p.status IS NULL OR p.status = 'Active')
+         ORDER BY sql_search_score DESC, COALESCE(p.counter, 0) DESC, p.id DESC
+         LIMIT 500`,
+        scoreParams
+      );
+    } catch (error) {
+      if (error?.code !== 'ER_BAD_FIELD_ERROR' && error?.code !== 'ER_NO_SUCH_TABLE') throw error;
+      const fallbackScoreSql = `(
+        CASE WHEN LOWER(p.name) = ? THEN 120 ELSE 0 END +
+        CASE WHEN LOWER(p.name) LIKE ? THEN 95 ELSE 0 END +
+        CASE WHEN LOWER(p.name) LIKE ? THEN 80 ELSE 0 END +
+        CASE WHEN LOWER(COALESCE(p.sku, '')) LIKE ? THEN 78 ELSE 0 END +
+        CASE WHEN LOWER(COALESCE(c.name, '')) LIKE ? THEN 68 ELSE 0 END +
+        CASE WHEN SOUNDEX(p.name) = SOUNDEX(?) THEN 45 ELSE 0 END
+      )`;
+      [rows] = await pool.query(
+        `SELECT p.id, p.name, p.price, p.photo, p.sku,
+                c.name AS category_name, NULL AS brand_name,
+                COALESCE(sold.total_sold, 0) AS sold_count,
+                NULL AS tags, ${fallbackScoreSql} AS sql_search_score
+         FROM products p
+         LEFT JOIN category c ON c.id = p.category_id
+         LEFT JOIN (
+           SELECT product_id, SUM(quantity) AS total_sold
+           FROM details
+           GROUP BY product_id
+         ) sold ON sold.product_id = p.id
+         WHERE (p.status IS NULL OR p.status = 'Active')
+         ORDER BY sql_search_score DESC, COALESCE(p.counter, 0) DESC, p.id DESC
+         LIMIT 500`,
+        [search, startsWith, like, like, like, search]
+      );
+    }
+
+    const suggestions = rows
+      .map((row) => rankSearchRow(row, search))
+      .filter((row) => row.search_score >= 58)
+      .sort((a, b) => b.search_score - a.search_score || Number(b.sold_count || 0) - Number(a.sold_count || 0))
+      .slice(0, safeLimit)
+      .map((row) => ({
+        id: row.id,
+        name: row.name,
+        price: Number(row.price || 0),
+        photo: row.photo || 'noimage.jpg',
+        category_name: row.category_name || '',
+        brand_name: row.brand_name || '',
+        matched_tag: row.matched_tag,
+        match_type: row.match_type,
+        score: row.search_score,
+      }));
+
+    res.json(suggestions);
+  } catch (error) {
+    console.error('Fetch search suggestions failed:', error);
+    res.status(500).json({ error: 'Error fetching search suggestions' });
   }
 });
 

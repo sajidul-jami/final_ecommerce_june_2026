@@ -3,42 +3,22 @@
 import { useEffect, useState } from 'react';
 import Link from 'next/link';
 import Image from 'next/image';
-import { useRouter, useSearchParams } from 'next/navigation';
+import { useRouter } from 'next/navigation';
 import websitelogo from '@/public/images/rupmohol_logo_final.png';
 import { useCart } from '../context/CartContext';
 import { useUser } from '../context/UserContext';
+import ProductSearchBox from './ProductSearchBox';
 
 export default function Navbar() {
   const { cartItemCount } = useCart();
   const { user, logout } = useUser();
   const router = useRouter();
-  const searchParams = useSearchParams();
-  const [search, setSearch] = useState('');
   const [showUserDetails, setShowUserDetails] = useState(false);
   const [mounted, setMounted] = useState(false);
 
   useEffect(() => {
     setMounted(true);
   }, []);
-
-  useEffect(() => {
-    if (!mounted) return;
-    setSearch(searchParams.get('search') || '');
-  }, [mounted, searchParams]);
-
-  const handleSearch = (event) => {
-    event.preventDefault();
-    const params = new URLSearchParams(searchParams.toString());
-
-    if (search.trim()) {
-      params.set('search', search.trim());
-    } else {
-      params.delete('search');
-    }
-
-    const target = params.toString() ? `/?${params.toString()}#shop` : '/#shop';
-    router.push(target);
-  };
 
   return (
     <header className="sticky top-0 z-40 border-b border-slate-200 bg-white/95 shadow-sm backdrop-blur">
@@ -56,18 +36,7 @@ export default function Navbar() {
           </Link>
         </div>
 
-        <form onSubmit={handleSearch} className="flex w-full overflow-hidden rounded-md border border-slate-300 lg:max-w-md">
-          <input
-            type="search"
-            value={search}
-            onChange={(event) => setSearch(event.target.value)}
-            placeholder="Search laptops, tablets, phones"
-            className="min-w-0 flex-1 px-3 py-2 text-sm text-slate-900 outline-none"
-          />
-          <button type="submit" className="bg-rose-600 px-4 py-2 text-sm font-semibold text-white transition hover:bg-rose-700">
-            Search
-          </button>
-        </form>
+        <ProductSearchBox className="w-full lg:max-w-md" placeholder="Search laptops, tablets, phones" />
 
         <div className="flex flex-wrap items-center gap-2">
           <Link href="/#categories" className="rounded-md px-3 py-2 text-sm font-semibold text-slate-700 hover:bg-slate-100">
