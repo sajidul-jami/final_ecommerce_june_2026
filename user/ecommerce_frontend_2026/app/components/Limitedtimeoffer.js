@@ -1,40 +1,59 @@
 'use client';
 
 import { useEffect, useState } from 'react';
-import Cards from '@/app/components/cards';
-import getAllProducts from '@/app/lib/mysqldb';
 import { apiFetch } from '@/app/lib/api';
+import Cards from '@/app/components/cards';
 
 export default function Limitedtimeoffer() {
   const [offers, setOffers] = useState([]);
+  const [loading, setLoading] = useState(true);
 
   useEffect(() => {
     const fetchOffers = async () => {
       try {
-        const dynamicOffers = await apiFetch('/offers');
-        setOffers(dynamicOffers.length ? dynamicOffers : await getAllProducts({ limit: 5 }));
+        setOffers(await apiFetch('/offers'));
       } catch (error) {
-        try {
-          setOffers(await getAllProducts({ limit: 5 }));
-        } catch (fallbackError) {
-          console.error(error, fallbackError);
-        }
+        console.error(error);
+        setOffers([]);
+      } finally {
+        setLoading(false);
       }
     };
 
     fetchOffers();
   }, []);
 
+  const groupedOffers = offers.reduce((groups, offer) => {
+    const title = offer.offer_group || offer.offer_title || 'Special Offers';
+    groups[title] = [...(groups[title] || []), offer];
+    return groups;
+  }, {});
+  const groupEntries = Object.entries(groupedOffers);
+
+  if (!loading && groupEntries.length === 0) {
+    return null;
+  }
+
   return (
     <section id="offers" className="mx-auto w-full max-w-7xl px-3 py-6 sm:px-5">
-      <div className="mb-4 flex flex-col gap-2 sm:flex-row sm:items-end sm:justify-between">
-        <div>
-          <p className="text-sm font-semibold uppercase tracking-wide text-emerald-600">Fresh deals</p>
-          <h2 className="text-2xl font-bold text-slate-950">Offers & Deals</h2>
-          <p className="mt-1 text-sm text-slate-500">Admin-managed products and campaign deals.</p>
-        </div>
+      <div className="mb-4 flex items-end justify-between">
+        <h2 className="text-2xl font-bold text-slate-950">Offers & Deals</h2>
       </div>
-      <Cards products={offers} />
+      {loading ? (
+        <div className="rounded-md bg-white p-6 text-center text-sm text-slate-500 shadow-sm">Loading offers...</div>
+      ) : (
+        <div className="space-y-7">
+          {groupEntries.map(([title, products]) => (
+            <div key={title}>
+              <div className="mb-3 flex items-center justify-between">
+                <h3 className="text-lg font-bold text-slate-900">{title}</h3>
+                <span className="text-sm font-semibold text-rose-600">{products.length} deals</span>
+              </div>
+              <Cards products={products} layout="scroll" />
+            </div>
+          ))}
+        </div>
+      )}
     </section>
   );
 }

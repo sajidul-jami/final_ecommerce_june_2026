@@ -64,7 +64,7 @@ export default function Allproducts() {
         <div>
           <p className="text-sm font-semibold uppercase tracking-wide text-rose-600">Shop now</p>
           <h2 className="text-2xl font-bold text-slate-950">
-            {queryCategory ? categoryName || `Category ${queryCategory}` : querySearch ? `Search results for "${querySearch}"` : 'All Products'}
+            {queryCategory ? categoryName || `Category ${queryCategory}` : querySearch ? `Search results for "${querySearch}"` : 'Explore Products'}
           </h2>
           {(queryCategory || querySearch) && (
             <Link href="/#shop" className="mt-1 inline-block text-sm font-semibold text-slate-500 hover:text-rose-600">

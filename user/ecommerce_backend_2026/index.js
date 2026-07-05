@@ -42,6 +42,97 @@ const normalizeProduct = (product) => ({
   images: Array.isArray(product.images) ? product.images : [],
 });
 
+const calculateOfferPricing = (price, discountType, discountValue) => {
+  const regularPrice = Number(price || 0);
+  const value = Math.max(Number(discountValue || 0), 0);
+  const isPercentage = discountType === 'Percentage';
+  const discountAmount = isPercentage ? regularPrice * Math.min(value, 100) / 100 : value;
+  const offerPrice = Math.max(regularPrice - discountAmount, 0);
+  const saveAmount = Math.max(regularPrice - offerPrice, 0);
+  const savePercent = regularPrice > 0 ? Math.round((saveAmount / regularPrice) * 100) : 0;
+
+  return {
+    regular_price: regularPrice,
+    offer_price: Math.round(offerPrice),
+    save_amount: Math.round(saveAmount),
+    save_percent: savePercent,
+    discount_label: isPercentage ? `${Math.min(value, 100)}% OFF` : `৳${Math.round(value)} OFF`,
+  };
+};
+
+const applyOfferToProduct = (product, offer) => {
+  if (!offer) return product;
+
+  const offerPricing = calculateOfferPricing(product.price, offer.discount_type, offer.discount_value);
+
+  return normalizeProduct({
+    ...product,
+    ...offerPricing,
+    price: offerPricing.offer_price,
+    offer_id: offer.offer_id || offer.id,
+    offer_title: offer.offer_title || offer.title,
+    offer_group: offer.offer_type || offer.offer_title || offer.title || 'Special Offers',
+    badge_text: offer.badge_text || null,
+    discount_type: offer.discount_type,
+    discount_value: Number(offer.discount_value || 0),
+  });
+};
+
+const getActiveOffersForProducts = async (queryRunner, productIds) => {
+  const ids = [...new Set((productIds || []).map(Number).filter(Boolean))];
+
+  if (ids.length === 0) return new Map();
+
+  let rows;
+
+  try {
+    [rows] = await queryRunner.query(
+      `SELECT *
+       FROM (
+         SELECT o.id AS offer_id, o.product_id, o.title AS offer_title, o.offer_type, o.badge_text,
+                o.discount_type, o.discount_value, o.start_date, o.end_date, o.sort_order
+         FROM offers o
+         WHERE o.status = 'Active'
+           AND o.product_id IN (${ids.map(() => '?').join(',')})
+           AND (o.start_date IS NULL OR o.start_date <= NOW())
+           AND (o.end_date IS NULL OR o.end_date >= NOW())
+         ORDER BY o.product_id ASC, o.sort_order ASC, o.end_date IS NULL ASC, o.end_date ASC, o.id DESC
+       ) active_offers`,
+      ids
+    );
+  } catch (error) {
+    if (isMissingTable(error)) {
+      return new Map();
+    }
+
+    if (error?.code !== 'ER_BAD_FIELD_ERROR') throw error;
+
+    [rows] = await queryRunner.query(
+      `SELECT *
+       FROM (
+         SELECT o.id AS offer_id, o.product_id, o.title AS offer_title, NULL AS offer_type, NULL AS badge_text,
+                o.discount_type, o.discount_value, o.start_date, o.end_date, 0 AS sort_order
+         FROM offers o
+         WHERE o.status = 'Active'
+           AND o.product_id IN (${ids.map(() => '?').join(',')})
+           AND (o.start_date IS NULL OR o.start_date <= NOW())
+           AND (o.end_date IS NULL OR o.end_date >= NOW())
+         ORDER BY o.product_id ASC, o.end_date IS NULL ASC, o.end_date ASC, o.id DESC
+       ) active_offers`,
+      ids
+    );
+  }
+
+  const offerMap = new Map();
+  rows.forEach((offer) => {
+    const productId = Number(offer.product_id);
+    if (!offerMap.has(productId)) {
+      offerMap.set(productId, offer);
+    }
+  });
+  return offerMap;
+};
+
 const normalizeSearchTerm = (value = '') =>
   String(value)
     .toLowerCase()
@@ -604,38 +695,69 @@ app.get('/sliders', async (req, res) => {
 
 app.get('/offers', async (req, res) => {
   try {
-    const rows = await optionalRows(
-      res,
-      `SELECT o.id, o.title, o.discount_type, o.discount_value, o.start_date, o.end_date,
-              p.*, c.name AS category_name, COALESCE(sold.total_sold, 0) AS sold_count
-       FROM offers o
-       INNER JOIN products p ON p.id = o.product_id
-       LEFT JOIN category c ON c.id = p.category_id
-       LEFT JOIN (
-         SELECT product_id, SUM(quantity) AS total_sold
-         FROM details
-         GROUP BY product_id
-       ) sold ON sold.product_id = p.id
-       WHERE o.status = 'Active'
-         AND (p.status IS NULL OR p.status = 'Active')
-         AND (o.start_date IS NULL OR o.start_date <= NOW())
-         AND (o.end_date IS NULL OR o.end_date >= NOW())
-       ORDER BY o.end_date ASC, o.id DESC
-       LIMIT 12`
-    );
+    let rows;
 
-    const products = rows.map((row) =>
-      normalizeProduct({
-        ...row,
-        offer_id: row.id,
-        offer_title: row.title,
-        discount_type: row.discount_type,
-        discount_value: Number(row.discount_value || 0),
-      })
-    );
+    try {
+      [rows] = await pool.query(
+        `SELECT o.id AS offer_id, o.title AS offer_title, o.offer_type, o.badge_text,
+                o.discount_type, o.discount_value, o.start_date, o.end_date, o.sort_order,
+                p.*, c.name AS category_name, COALESCE(sold.total_sold, 0) AS sold_count
+         FROM offers o
+         INNER JOIN products p ON p.id = o.product_id
+         LEFT JOIN category c ON c.id = p.category_id
+         LEFT JOIN (
+           SELECT product_id, SUM(quantity) AS total_sold
+           FROM details
+           GROUP BY product_id
+         ) sold ON sold.product_id = p.id
+         WHERE o.status = 'Active'
+           AND (p.status IS NULL OR p.status = 'Active')
+           AND (o.start_date IS NULL OR o.start_date <= NOW())
+           AND (o.end_date IS NULL OR o.end_date >= NOW())
+         ORDER BY o.sort_order ASC, o.end_date IS NULL ASC, o.end_date ASC, o.id DESC
+         LIMIT 24`
+      );
+    } catch (error) {
+      if (error?.code !== 'ER_BAD_FIELD_ERROR') throw error;
+      [rows] = await pool.query(
+        `SELECT o.id AS offer_id, o.title AS offer_title, NULL AS offer_type, NULL AS badge_text,
+                o.discount_type, o.discount_value, o.start_date, o.end_date, 0 AS sort_order,
+                p.*, c.name AS category_name, COALESCE(sold.total_sold, 0) AS sold_count
+         FROM offers o
+         INNER JOIN products p ON p.id = o.product_id
+         LEFT JOIN category c ON c.id = p.category_id
+         LEFT JOIN (
+           SELECT product_id, SUM(quantity) AS total_sold
+           FROM details
+           GROUP BY product_id
+         ) sold ON sold.product_id = p.id
+         WHERE o.status = 'Active'
+           AND (p.status IS NULL OR p.status = 'Active')
+           AND (o.start_date IS NULL OR o.start_date <= NOW())
+           AND (o.end_date IS NULL OR o.end_date >= NOW())
+         ORDER BY o.end_date IS NULL ASC, o.end_date ASC, o.id DESC
+         LIMIT 24`
+      );
+    }
+
+    const uniqueOfferRows = [];
+    const seenProductIds = new Set();
+
+    rows.forEach((row) => {
+      const productId = Number(row.id);
+      if (seenProductIds.has(productId)) return;
+      seenProductIds.add(productId);
+      uniqueOfferRows.push(row);
+    });
+
+    const products = uniqueOfferRows.map((row) => applyOfferToProduct(row, row));
     await hydrateProductExtras(products);
     res.json(products);
   } catch (error) {
+    if (isMissingTable(error)) {
+      return res.json([]);
+    }
+
     console.error('Fetch offers failed:', error);
     res.status(500).json({ error: 'Error fetching offers from database' });
   }
@@ -897,11 +1019,14 @@ app.get('/search-suggestions', async (req, res) => {
 
 app.get('/singleproducts/:id', async (req, res) => {
   try {
-    const product = await getSafeProductRow(req.params.id);
+    let product = await getSafeProductRow(req.params.id);
 
     if (!product) {
       return res.status(404).json({ error: 'Product not found' });
     }
+
+    const activeOffers = await getActiveOffersForProducts(pool, [product.id]);
+    product = applyOfferToProduct(product, activeOffers.get(Number(product.id)));
 
     if (req.query.view !== '0') {
       await pool.query('UPDATE products SET counter = COALESCE(counter, 0) + 1 WHERE id = ?', [req.params.id]);
@@ -1047,6 +1172,7 @@ const checkoutHandler = async (req, res) => {
        WHERE id IN (${productIds.map(() => '?').join(',')}) FOR UPDATE`,
       productIds
     );
+    const activeOffers = await getActiveOffersForProducts(connection, productIds);
 
     const productMap = new Map(dbProducts.map((item) => [Number(item.id), item]));
     let totalAmount = 0;
@@ -1065,7 +1191,8 @@ const checkoutHandler = async (req, res) => {
         throw new Error(`${product.name} stock is only ${product.quantity}`);
       }
 
-      const price = Number(product.price);
+      const offeredProduct = applyOfferToProduct(product, activeOffers.get(productId));
+      const price = Number(offeredProduct.price);
       totalAmount += price * requestedQty;
       orderItems.push({ productId, quantity: requestedQty, price });
     }

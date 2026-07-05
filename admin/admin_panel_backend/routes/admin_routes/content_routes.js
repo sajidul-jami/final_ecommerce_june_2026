@@ -12,6 +12,46 @@ const missingColumn = (error) =>
 
 const toMysqlDateTime = (value) => value ? String(value).replace('T', ' ') : null
 
+const offerSelect = `
+    SELECT o.*, p.name AS product_name, p.photo, p.price,
+           CASE
+             WHEN o.discount_type = 'Percentage'
+               THEN GREATEST(p.price - (p.price * LEAST(o.discount_value, 100) / 100), 0)
+             ELSE GREATEST(p.price - o.discount_value, 0)
+           END AS offer_price
+    FROM offers o
+    LEFT JOIN products p ON p.id = o.product_id
+`
+
+const ensureProductsNotInActiveOffer = async (productIds, excludeOfferId = null) => {
+    const ids = [...new Set((productIds || []).map(Number).filter(Boolean))]
+
+    if (ids.length === 0) return
+
+    const params = [...ids]
+    let excludeSql = ''
+
+    if (excludeOfferId) {
+        excludeSql = ' AND id <> ?'
+        params.push(excludeOfferId)
+    }
+
+    const [existing] = await pool.query(
+        `SELECT id, product_id, title, offer_type
+         FROM offers
+         WHERE status = 'Active'
+           AND product_id IN (${ids.map(() => '?').join(',')})
+           ${excludeSql}
+         LIMIT 1`,
+        params
+    )
+
+    if (existing.length) {
+        const offer = existing[0]
+        throw new Error(`This product is already in ${offer.offer_type || offer.title || 'another active offer'}. Remove or deactivate that offer first.`)
+    }
+}
+
 const optionalList = (handler) => async (req, res) => {
     try {
         const data = await handler(req)
@@ -42,25 +82,69 @@ const optionalWrite = (handler) => async (req, res) => {
 }
 
 router.get('/offers', optionalList(async () => {
-    const [rows] = await pool.query(`
-        SELECT o.*, p.name AS product_name, p.photo, p.price
-        FROM offers o
-        LEFT JOIN products p ON p.id = o.product_id
-        ORDER BY o.status = 'Active' DESC, o.end_date ASC, o.id DESC
-    `)
+    let rows
+
+    try {
+        ;[rows] = await pool.query(`
+            ${offerSelect}
+            ORDER BY o.status = 'Active' DESC, o.sort_order ASC, o.end_date IS NULL ASC, o.end_date ASC, o.id DESC
+        `)
+    } catch (error) {
+        if (!missingColumn(error)) throw error
+        ;[rows] = await pool.query(`
+            SELECT o.*, p.name AS product_name, p.photo, p.price,
+                   CASE
+                     WHEN o.discount_type = 'Percentage'
+                       THEN GREATEST(p.price - (p.price * LEAST(o.discount_value, 100) / 100), 0)
+                     ELSE GREATEST(p.price - o.discount_value, 0)
+                   END AS offer_price
+            FROM offers o
+            LEFT JOIN products p ON p.id = o.product_id
+            ORDER BY o.status = 'Active' DESC, o.end_date ASC, o.id DESC
+        `)
+    }
+
     return rows
 }))
 
 router.post('/offers', optionalWrite(async (req) => {
-    const { title, product_id, product_ids, discount_type, discount_value, start_date, end_date, status } = req.body
-    const ids = Array.isArray(product_ids) && product_ids.length ? product_ids : [product_id]
+    const {
+        title,
+        product_id,
+        product_ids,
+        discount_type,
+        discount_value,
+        start_date,
+        end_date,
+        status,
+        offer_type,
+        badge_text,
+        sort_order
+    } = req.body
+    const ids = (Array.isArray(product_ids) && product_ids.length ? product_ids : [product_id]).map(Number).filter(Boolean)
     const inserted = []
 
-    for (const id of ids.filter(Boolean)) {
+    if ((status || 'Active') === 'Active') {
+        await ensureProductsNotInActiveOffer(ids)
+    }
+
+    for (const id of ids) {
         const [result] = await pool.query(
-            `INSERT INTO offers (title, product_id, discount_type, discount_value, start_date, end_date, status)
-             VALUES (?, ?, ?, ?, ?, ?, ?)`,
-            [title || '', id, discount_type || 'Percentage', discount_value || 0, toMysqlDateTime(start_date), toMysqlDateTime(end_date), status || 'Active']
+            `INSERT INTO offers
+             (title, product_id, discount_type, discount_value, start_date, end_date, status, offer_type, badge_text, sort_order)
+             VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+            [
+                title || '',
+                id,
+                discount_type || 'Percentage',
+                discount_value || 0,
+                toMysqlDateTime(start_date),
+                toMysqlDateTime(end_date),
+                status || 'Active',
+                offer_type || 'Special Offers',
+                badge_text || '',
+                Number(sort_order || 0)
+            ]
         )
         inserted.push(result.insertId)
     }
@@ -69,12 +153,40 @@ router.post('/offers', optionalWrite(async (req) => {
 }))
 
 router.put('/offers/:id', optionalWrite(async (req) => {
-    const { title, product_id, discount_type, discount_value, start_date, end_date, status } = req.body
+    const {
+        title,
+        product_id,
+        discount_type,
+        discount_value,
+        start_date,
+        end_date,
+        status,
+        offer_type,
+        badge_text,
+        sort_order
+    } = req.body
+    if ((status || 'Active') === 'Active') {
+        await ensureProductsNotInActiveOffer([product_id], req.params.id)
+    }
+
     await pool.query(
         `UPDATE offers
-         SET title = ?, product_id = ?, discount_type = ?, discount_value = ?, start_date = ?, end_date = ?, status = ?
+         SET title = ?, product_id = ?, discount_type = ?, discount_value = ?, start_date = ?, end_date = ?,
+             status = ?, offer_type = ?, badge_text = ?, sort_order = ?
          WHERE id = ?`,
-        [title || '', product_id, discount_type || 'Percentage', discount_value || 0, toMysqlDateTime(start_date), toMysqlDateTime(end_date), status || 'Active', req.params.id]
+        [
+            title || '',
+            product_id,
+            discount_type || 'Percentage',
+            discount_value || 0,
+            toMysqlDateTime(start_date),
+            toMysqlDateTime(end_date),
+            status || 'Active',
+            offer_type || 'Special Offers',
+            badge_text || '',
+            Number(sort_order || 0),
+            req.params.id
+        ]
     )
     return { message: 'Offer updated' }
 }))

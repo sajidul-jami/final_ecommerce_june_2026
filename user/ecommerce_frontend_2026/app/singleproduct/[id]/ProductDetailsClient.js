@@ -19,6 +19,11 @@ export default function ProductDetailsClient({ product }) {
   const { user } = useUser();
   const { addToCart, setCheckoutItems } = useCart();
   const inStock = Number(product.quantity) > 0;
+  const hasOffer = Boolean(product.offer_id) && Number(product.regular_price || 0) > Number(product.price || 0);
+  const displayPrice = Number(product.offer_price || product.price || 0);
+  const regularPrice = Number(product.regular_price || product.price || 0);
+  const discountLabel =
+    product.badge_text || product.discount_label || (product.save_percent ? `${product.save_percent}% OFF` : '');
   const [reviews, setReviews] = useState([]);
   const [reviewForm, setReviewForm] = useState({ rating: 5, title: '', comment: '' });
   const [reviewMessage, setReviewMessage] = useState('');
@@ -86,7 +91,26 @@ export default function ProductDetailsClient({ product }) {
             </p>
             <h1 className="mt-2 text-2xl font-black leading-tight sm:text-4xl">{product.name}</h1>
             <p className="mt-3 text-sm text-slate-500">SKU: {product.sku || `TTBD-${product.id}`}</p>
-            <p className="mt-5 text-3xl font-black text-rose-600">{taka.format(Number(product.price || 0))}</p>
+            <div className="mt-5">
+              {hasOffer && (
+                <div className="mb-2 flex flex-wrap items-center gap-2">
+                  <span className="rounded bg-rose-600 px-2 py-1 text-xs font-bold text-white">
+                    {discountLabel || 'Offer'}
+                  </span>
+                  {Number(product.save_amount || 0) > 0 && (
+                    <span className="text-sm font-bold text-emerald-600">
+                      Save {taka.format(Number(product.save_amount || 0))}
+                    </span>
+                  )}
+                </div>
+              )}
+              <div className="flex flex-wrap items-baseline gap-3">
+                <p className="text-3xl font-black text-rose-600">{taka.format(displayPrice)}</p>
+                {hasOffer && (
+                  <p className="text-lg font-bold text-slate-400 line-through">{taka.format(regularPrice)}</p>
+                )}
+              </div>
+            </div>
             <p className="mt-2 text-sm font-semibold text-slate-500">
               {Number(product.sold_count || 0)} sold
               {Number(product.review_count || 0) > 0 ? ` | ${Number(product.avg_rating || 0).toFixed(1)} stars from ${product.review_count} reviews` : ''}
