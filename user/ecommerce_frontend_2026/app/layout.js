@@ -31,7 +31,7 @@ export default function RootLayout({ children }) {
   return (
     <html lang="en" data-scroll-behavior="smooth">
 
-      <body>
+      <body suppressHydrationWarning>
         <UserProvider>
           <CartProvider>
             <Suspense fallback={null}>

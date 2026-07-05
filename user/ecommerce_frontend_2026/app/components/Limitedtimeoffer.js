@@ -11,8 +11,11 @@ function OfferCarousel({ products }) {
   const autoScrollLeftRef = useRef(0);
   const loopWidthRef = useRef(0);
   const pausedRef = useRef(false);
-  const [paused, setPaused] = useState(false);
+  const [interactionPaused, setInteractionPaused] = useState(false);
+  const [userPaused, setUserPaused] = useState(false);
+  const [prefersReducedMotion, setPrefersReducedMotion] = useState(false);
   const canLoop = products.length > 1;
+  const isPaused = userPaused || interactionPaused || prefersReducedMotion;
   const displayProducts = canLoop ? Array.from({ length: 6 }, () => products).flat() : products;
 
   const getLoopPoint = useCallback((element) => {
@@ -35,21 +38,36 @@ function OfferCarousel({ products }) {
     autoScrollLeftRef.current = element.scrollLeft;
   }, [getLoopPoint]);
 
+  const pauseForInteraction = useCallback(() => {
+    window.clearTimeout(resumeTimerRef.current);
+    setInteractionPaused(true);
+  }, []);
+
   const resumeSoon = useCallback(() => {
     window.clearTimeout(resumeTimerRef.current);
-    resumeTimerRef.current = window.setTimeout(() => setPaused(false), 900);
+    resumeTimerRef.current = window.setTimeout(() => setInteractionPaused(false), 900);
   }, []);
 
   useEffect(() => {
-    pausedRef.current = paused;
-  }, [paused]);
+    pausedRef.current = isPaused;
+  }, [isPaused]);
+
+  useEffect(() => {
+    const motionQuery = window.matchMedia('(prefers-reduced-motion: reduce)');
+    const updateReducedMotion = () => setPrefersReducedMotion(motionQuery.matches);
+
+    updateReducedMotion();
+    motionQuery.addEventListener('change', updateReducedMotion);
+
+    return () => motionQuery.removeEventListener('change', updateReducedMotion);
+  }, []);
 
   useEffect(() => {
     if (!canLoop) return undefined;
 
     let frameId;
     let lastTime;
-    const pixelsPerSecond = 44;
+    const pixelsPerSecond = 60;
 
     const tick = (time) => {
       const element = scrollRef.current;
@@ -107,7 +125,7 @@ function OfferCarousel({ products }) {
     const firstCard = element.firstElementChild;
     if (!firstCard) return;
 
-    setPaused(true);
+    pauseForInteraction();
     window.clearTimeout(resumeTimerRef.current);
     cancelAnimationFrame(manualFrameRef.current);
     loopWidthRef.current = getLoopPoint(element);
@@ -129,7 +147,7 @@ function OfferCarousel({ products }) {
       const progress = Math.min((time - startedAt) / duration, 1);
       const eased = 1 - Math.pow(1 - progress, 3);
       autoScrollLeftRef.current = start + (target - start) * eased;
-      element.scrollLeft = autoScrollLeftRef.current;
+      element.scrollLeft = Math.round(autoScrollLeftRef.current);
 
       if (progress < 1) {
         manualFrameRef.current = requestAnimationFrame(animate);
@@ -145,17 +163,25 @@ function OfferCarousel({ products }) {
 
   return (
     <div
+      aria-label="Offer carousel"
       className="relative w-full max-w-full overflow-hidden"
-      onTouchStart={() => setPaused(true)}
+      role="region"
+      onMouseEnter={pauseForInteraction}
+      onMouseLeave={resumeSoon}
+      onFocus={pauseForInteraction}
+      onBlur={(event) => {
+        if (!event.currentTarget.contains(event.relatedTarget)) {
+          resumeSoon();
+        }
+      }}
+      onTouchStart={pauseForInteraction}
       onTouchEnd={resumeSoon}
     >
       <Cards
         products={displayProducts}
         layout="scroll"
         scrollRef={scrollRef}
-        onFocus={() => setPaused(true)}
-        onBlur={resumeSoon}
-        onTouchStart={() => setPaused(true)}
+        onTouchStart={pauseForInteraction}
         onTouchEnd={resumeSoon}
         onScroll={(event) => {
           if (pausedRef.current) {
@@ -189,6 +215,26 @@ function OfferCarousel({ products }) {
           >
             <span className="h-3 w-3 -translate-x-0.5 rotate-45 border-r-[3px] border-t-[3px] border-current sm:h-3.5 sm:w-3.5" />
           </button>
+          <button
+            type="button"
+            onClick={() => {
+              window.clearTimeout(resumeTimerRef.current);
+              setInteractionPaused(false);
+              setUserPaused((current) => !current);
+            }}
+            aria-label={userPaused ? 'Play offer carousel' : 'Pause offer carousel'}
+            aria-pressed={userPaused}
+            className="absolute right-2 top-2 z-10 grid h-9 w-9 place-items-center rounded-full border border-white/80 bg-white/95 text-slate-900 shadow-lg ring-1 ring-slate-900/10 transition hover:bg-rose-600 hover:text-white focus:outline-none focus:ring-2 focus:ring-rose-500 sm:h-10 sm:w-10"
+          >
+            {userPaused ? (
+              <span className="ml-0.5 block h-0 w-0 border-y-[7px] border-l-[11px] border-y-transparent border-l-current" />
+            ) : (
+              <span className="flex h-4 w-4 items-center justify-center gap-1">
+                <span className="h-4 w-1.5 rounded-sm bg-current" />
+                <span className="h-4 w-1.5 rounded-sm bg-current" />
+              </span>
+            )}
+          </button>
         </>
       )}
     </div>
@@ -215,23 +261,26 @@ export default function Limitedtimeoffer() {
   }, []);
 
   const groupedOffers = offers.reduce((groups, offer) => {
-    const title = offer.offer_group || offer.offer_title || 'Special Offers';
+    const title = offer.offer_group || offer.offer_title || 'Limited Time Offer';
     groups[title] = [...(groups[title] || []), offer];
     return groups;
   }, {});
   const groupEntries = Object.entries(groupedOffers);
 
-  if (!loading && groupEntries.length === 0) {
-    return null;
-  }
-
   return (
     <section id="offers" className="mx-auto w-full max-w-7xl bg-slate-50 px-3 py-6 sm:px-5">
       <div className="mb-4 flex items-end justify-between">
-        <h2 className="text-2xl font-bold text-slate-950">Offers & Deals</h2>
+        <div>
+          <p className="text-sm font-semibold uppercase tracking-wide text-rose-600">Do not miss</p>
+          <h2 className="text-2xl font-bold text-slate-950">Limited Time Offer</h2>
+        </div>
       </div>
       {loading ? (
         <div className="rounded-md bg-white p-6 text-center text-sm text-slate-500 shadow-sm">Loading offers...</div>
+      ) : groupEntries.length === 0 ? (
+        <div className="rounded-md bg-white p-6 text-center text-sm text-slate-500 shadow-sm">
+          No limited time offers are active right now.
+        </div>
       ) : (
         <div className="space-y-7">
           {groupEntries.map(([title, products]) => (
