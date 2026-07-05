@@ -135,10 +135,25 @@ export default function Cards({
                 <button
                   type="button"
                   disabled={!inStock}
+                  aria-label="Add to cart"
                   onClick={() => addToCart({ ...product, stock_quantity: Number(product.quantity || 0) })}
-                  className="rounded-md border border-slate-300 px-2 py-2 text-xs font-semibold text-slate-800 transition hover:border-slate-900 disabled:cursor-not-allowed disabled:opacity-50"
+                  className="flex min-h-9 items-center justify-center rounded-md border border-slate-300 px-2 py-2 text-xs font-semibold text-slate-800 transition hover:border-slate-900 disabled:cursor-not-allowed disabled:opacity-50"
                 >
-                  Add to Cart
+                  <svg
+                    aria-hidden="true"
+                    viewBox="0 0 24 24"
+                    className="h-5 w-5 sm:hidden"
+                    fill="none"
+                    stroke="currentColor"
+                    strokeLinecap="round"
+                    strokeLinejoin="round"
+                    strokeWidth="2"
+                  >
+                    <circle cx="8" cy="21" r="1" />
+                    <circle cx="19" cy="21" r="1" />
+                    <path d="M2.5 3h2l2.4 12.2a2 2 0 0 0 2 1.6h8.8a2 2 0 0 0 2-1.6L21 8H6" />
+                  </svg>
+                  <span className="hidden sm:inline">Add to Cart</span>
                 </button>
                 <button
                   type="button"

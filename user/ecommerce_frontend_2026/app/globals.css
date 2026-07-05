@@ -35,3 +35,21 @@ textarea,
 select {
   -webkit-tap-highlight-color: transparent;
 }
+
+@keyframes cart-bump {
+  0% {
+    transform: scale(1);
+  }
+
+  45% {
+    transform: scale(1.14);
+  }
+
+  100% {
+    transform: scale(1);
+  }
+}
+
+.cart-bump {
+  animation: cart-bump 420ms ease-out;
+}

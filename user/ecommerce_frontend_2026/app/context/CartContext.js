@@ -7,6 +7,7 @@ const CartContext = createContext();
 export function CartProvider({ children }) {
   const [cart, setCart] = useState([]);
   const [toast, setToast] = useState('');
+  const [cartPulseKey, setCartPulseKey] = useState(0);
 
   useEffect(() => {
     const storedCart = localStorage.getItem('cart');
@@ -57,6 +58,9 @@ export function CartProvider({ children }) {
       return [...prevCart, { ...item, stock_quantity: incomingStock, quantity: Math.min(amount, incomingStock) }];
     });
     setToast(added ? 'Cart added' : message);
+    if (added) {
+      setCartPulseKey((key) => key + 1);
+    }
   };
 
   const decreaseQuantity = (itemId) => {
@@ -105,6 +109,7 @@ export function CartProvider({ children }) {
         cart,
         cartItemCount,
         cartTotal,
+        cartPulseKey,
         addToCart,
         decreaseQuantity,
         removeFromCart,

@@ -25,7 +25,7 @@ function OfferCarousel({ products }) {
     return firstRepeatedCard.offsetLeft - element.firstElementChild.offsetLeft;
   }, [products.length]);
 
-  const normalizeScroll = useCallback((element) => {
+  const normalizeScroll = useCallback((element, syncPosition = true) => {
     const loopPoint = loopWidthRef.current || getLoopPoint(element);
     if (loopPoint <= 0) return;
 
@@ -35,7 +35,9 @@ function OfferCarousel({ products }) {
       element.scrollLeft %= loopPoint;
     }
 
-    autoScrollLeftRef.current = element.scrollLeft;
+    if (syncPosition) {
+      autoScrollLeftRef.current = element.scrollLeft;
+    }
   }, [getLoopPoint]);
 
   const pauseForInteraction = useCallback(() => {
@@ -90,7 +92,7 @@ function OfferCarousel({ products }) {
         }
 
         element.scrollLeft = autoScrollLeftRef.current;
-        normalizeScroll(element);
+        normalizeScroll(element, false);
       }
 
       lastTime = time;
@@ -186,15 +188,17 @@ function OfferCarousel({ products }) {
         onScroll={(event) => {
           if (pausedRef.current) {
             autoScrollLeftRef.current = event.currentTarget.scrollLeft;
+            normalizeScroll(event.currentTarget);
+            return;
           }
 
-          normalizeScroll(event.currentTarget);
+          normalizeScroll(event.currentTarget, false);
         }}
       />
       {canLoop && (
         <>
-          <div className="pointer-events-none absolute bottom-0 left-0 top-0 z-[5] w-5 bg-gradient-to-r from-slate-50 to-transparent sm:w-16" />
-          <div className="pointer-events-none absolute bottom-0 right-0 top-0 z-[5] w-5 bg-gradient-to-l from-slate-50 to-transparent sm:w-16" />
+          <div className="pointer-events-none absolute bottom-0 left-0 top-0 z-[5] w-4 bg-gradient-to-r from-slate-50 to-transparent sm:w-8" />
+          <div className="pointer-events-none absolute bottom-0 right-0 top-0 z-[5] w-4 bg-gradient-to-l from-slate-50 to-transparent sm:w-8" />
         </>
       )}
       {canLoop && (

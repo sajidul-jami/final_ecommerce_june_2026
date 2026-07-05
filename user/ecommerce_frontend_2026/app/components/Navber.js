@@ -1,6 +1,6 @@
 'use client';
 
-import { useEffect, useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import Link from 'next/link';
 import Image from 'next/image';
 import { useRouter } from 'next/navigation';
@@ -10,19 +10,48 @@ import { useUser } from '../context/UserContext';
 import ProductSearchBox from './ProductSearchBox';
 
 export default function Navbar() {
-  const { cartItemCount } = useCart();
+  const { cartItemCount, cartPulseKey } = useCart();
   const { user, logout } = useUser();
   const router = useRouter();
+  const headerRef = useRef(null);
   const [showUserDetails, setShowUserDetails] = useState(false);
   const [mounted, setMounted] = useState(false);
+  const [cartBump, setCartBump] = useState(false);
+  const [headerHeight, setHeaderHeight] = useState(null);
 
   useEffect(() => {
     setMounted(true);
   }, []);
 
+  useEffect(() => {
+    const header = headerRef.current;
+    if (!header) return undefined;
+
+    const updateHeaderHeight = () => setHeaderHeight(header.offsetHeight);
+    updateHeaderHeight();
+
+    const resizeObserver = new ResizeObserver(updateHeaderHeight);
+    resizeObserver.observe(header);
+    window.addEventListener('resize', updateHeaderHeight);
+
+    return () => {
+      resizeObserver.disconnect();
+      window.removeEventListener('resize', updateHeaderHeight);
+    };
+  }, []);
+
+  useEffect(() => {
+    if (!cartPulseKey) return undefined;
+
+    setCartBump(true);
+    const timer = setTimeout(() => setCartBump(false), 420);
+    return () => clearTimeout(timer);
+  }, [cartPulseKey]);
+
   return (
-    <header className="sticky top-0 z-40 border-b border-slate-200 bg-white/95 shadow-sm backdrop-blur">
-      <nav className="mx-auto flex max-w-7xl flex-col gap-3 px-3 py-3 sm:px-5 lg:flex-row lg:items-center lg:justify-between">
+    <>
+      <header ref={headerRef} className="fixed left-0 right-0 top-0 z-50 border-b border-slate-200 bg-white/95 shadow-sm backdrop-blur">
+        <nav className="mx-auto flex max-w-7xl flex-col gap-3 px-3 py-3 sm:px-5 lg:flex-row lg:items-center lg:justify-between">
         <div className="flex items-center justify-between gap-3">
           <Link href="/" className="flex items-center gap-3">
             <Image src={websitelogo} alt="websitelogo" className="h-auto w-28 object-cover" priority />
@@ -30,7 +59,7 @@ export default function Navbar() {
           </Link>
           <Link
             href="/cart"
-            className="rounded-md bg-slate-950 px-3 py-2 text-sm font-semibold text-white lg:hidden"
+            className={`rounded-md bg-slate-950 px-3 py-2 text-sm font-semibold text-white lg:hidden ${cartBump ? 'cart-bump' : ''}`}
           >
             Cart {mounted ? cartItemCount : 0}
           </Link>
@@ -50,7 +79,7 @@ export default function Navbar() {
           </Link>
           <Link
             href="/cart"
-            className="hidden rounded-md bg-slate-950 px-3 py-2 text-sm font-semibold text-white transition hover:bg-rose-600 lg:inline-flex"
+            className={`hidden rounded-md bg-slate-950 px-3 py-2 text-sm font-semibold text-white transition hover:bg-rose-600 lg:inline-flex ${cartBump ? 'cart-bump' : ''}`}
           >
             Cart ({mounted ? cartItemCount : 0})
           </Link>
@@ -101,7 +130,13 @@ export default function Navbar() {
             </Link>
           )}
         </div>
-      </nav>
-    </header>
+        </nav>
+      </header>
+      <div
+        aria-hidden="true"
+        className="h-[154px] lg:h-[73px]"
+        style={headerHeight ? { height: `${headerHeight}px` } : undefined}
+      />
+    </>
   );
 }
