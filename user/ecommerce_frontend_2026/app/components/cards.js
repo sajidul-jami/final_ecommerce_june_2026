@@ -12,7 +12,18 @@ const taka = new Intl.NumberFormat('en-BD', {
   maximumFractionDigits: 0,
 });
 
-export default function Cards({ products = [], layout = 'grid' }) {
+export default function Cards({
+  products = [],
+  layout = 'grid',
+  scrollRef,
+  onMouseEnter,
+  onMouseLeave,
+  onFocus,
+  onBlur,
+  onTouchStart,
+  onTouchEnd,
+  onScroll,
+}) {
   const router = useRouter();
   const { addToCart, setCheckoutItems } = useCart();
   // const { user } = useUser();
@@ -38,16 +49,29 @@ export default function Cards({ products = [], layout = 'grid' }) {
   }
 
   const isScroll = layout === 'scroll';
+  const isMarquee = layout === 'marquee';
   const containerClassName = isScroll
-    ? 'flex w-full max-w-full gap-3 overflow-x-auto overflow-y-visible pb-3 pr-1 [scrollbar-width:thin]'
+    ? 'flex w-full max-w-full gap-3 overflow-x-auto overflow-y-visible overscroll-x-contain pb-3 [-ms-overflow-style:none] [scrollbar-width:none] [&::-webkit-scrollbar]:hidden'
+    : isMarquee
+      ? 'flex w-max max-w-none gap-3 overflow-visible pb-3 will-change-transform'
     : 'grid grid-cols-2 gap-3 sm:grid-cols-3 lg:grid-cols-4 xl:grid-cols-5';
-  const cardClassName = isScroll
-    ? 'group flex min-h-[320px] w-[calc((100vw-48px)/2)] max-w-[220px] shrink-0 flex-col overflow-hidden rounded-lg border border-slate-200 bg-white shadow-sm transition hover:-translate-y-1 hover:shadow-lg sm:w-[220px] lg:w-[230px]'
+  const cardClassName = isScroll || isMarquee
+    ? 'group flex min-h-[310px] w-[calc((100vw-2.25rem)/2)] max-w-[178px] shrink-0 flex-col overflow-hidden rounded-lg border border-slate-200 bg-white shadow-sm transition hover:-translate-y-1 hover:shadow-lg sm:min-h-[320px] sm:w-[210px] sm:max-w-none lg:w-[230px]'
     : 'group flex min-h-[320px] flex-col overflow-hidden rounded-lg border border-slate-200 bg-white shadow-sm transition hover:-translate-y-1 hover:shadow-lg';
 
   return (
-    <div className={containerClassName}>
-      {products.map((product) => {
+    <div
+      ref={scrollRef}
+      className={containerClassName}
+      onMouseEnter={onMouseEnter}
+      onMouseLeave={onMouseLeave}
+      onFocus={onFocus}
+      onBlur={onBlur}
+      onTouchStart={onTouchStart}
+      onTouchEnd={onTouchEnd}
+      onScroll={onScroll}
+    >
+      {products.map((product, index) => {
         const inStock = Number(product.quantity) > 0;
         const hasOffer = Boolean(product.offer_id) && Number(product.regular_price || 0) > Number(product.price || 0);
         const displayPrice = Number(product.offer_price || product.price || 0);
@@ -57,7 +81,7 @@ export default function Cards({ products = [], layout = 'grid' }) {
 
         return (
           <article
-            key={product.id}
+            key={`${product.id}-${product.offer_id || 'product'}-${index}`}
             className={cardClassName}
           >
             <Link href={`/singleproduct/${product.id}`} className="relative block aspect-square bg-slate-100">
