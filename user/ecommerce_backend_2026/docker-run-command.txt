@@ -9,3 +9,7 @@ docker run -d \
   -e JWT_SECRET=replace_this_with_a_long_random_secret \
   -p 3005:3005 \
   user-ecommerce-backend-image
+
+
+
+  

@@ -12,3 +12,7 @@ docker run -d \
   -e NEXT_PUBLIC_PRODUCT_IMAGE_BASE_URL=http://192.168.1.146:9000/ecommerce \
   -e NEXT_PUBLIC_SITE_URL=http://192.168.1.146:3000 \
   user-ecommerce-frontend_2026-image
+
+
+
+
