@@ -38,7 +38,7 @@ const normalizeProduct = (product) => ({
   sold_count: Number(product.sold_count || 0),
   avg_rating: Number(product.avg_rating || 0),
   review_count: Number(product.review_count || 0),
-  photo: product.photo || 'noimage.jpg',
+  photo: product.photo || 'products/noimage.jpg',
   images: Array.isArray(product.images) ? product.images : [],
 });
 
@@ -637,7 +637,7 @@ app.get('/orders/:userId', async (req, res) => {
         orderMap.get(row.id).items.push({
           product_id: row.product_id,
           name: row.product_name,
-          photo: row.product_photo || 'noimage.jpg',
+          photo: row.product_photo || 'products/noimage.jpg',
           quantity: Number(row.quantity || 0),
           price: Number(row.price || 0),
         });
@@ -1002,7 +1002,7 @@ app.get('/search-suggestions', async (req, res) => {
         id: row.id,
         name: row.name,
         price: Number(row.price || 0),
-        photo: row.photo || 'noimage.jpg',
+        photo: row.photo || 'products/noimage.jpg',
         category_name: row.category_name || '',
         brand_name: row.brand_name || '',
         matched_tag: row.matched_tag,
@@ -1301,7 +1301,7 @@ app.post('/productadd', async (req, res) => {
         price,
         description || '',
         slug || name.toLowerCase().replace(/\s+/g, '-'),
-        photo || 'noimage.jpg',
+        photo || 'products/noimage.jpg',
         counter || 0,
         quantity || 0,
         sku || null,

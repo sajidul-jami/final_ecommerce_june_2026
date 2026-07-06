@@ -5,7 +5,7 @@ import { useState } from 'react';
 import { PRODUCT_IMAGE_BASE_URL } from '@/app/lib/api';
 
 export function getProductImageSrc(photo) {
-  const imageName = photo || 'noimage.jpg';
+  const imageName = photo || 'products/noimage.jpg';
 
   if (/^https?:\/\//i.test(imageName) || imageName.startsWith('/')) {
     return imageName;
@@ -23,7 +23,7 @@ export default function ProductImage({ photo, alt, className = 'object-contain p
       src={src}
       alt={alt || 'Product image'}
       className={className}
-      onError={() => setSrc('/images/productsimg/noimage.jpg')}
+      onError={() => setSrc(getProductImageSrc('products/noimage.jpg'))}
     />
   );
 }

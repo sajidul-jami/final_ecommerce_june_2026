@@ -4,8 +4,7 @@ import { useEffect, useState } from 'react';
 import Image from 'next/image';
 import Link from 'next/link';
 import { useSearchParams } from 'next/navigation';
-import Slideimage from '@/public/images/slideberimage01.jpeg';
-import { apiFetch } from '@/app/lib/api';
+import { apiFetch, PRODUCT_IMAGE_BASE_URL } from '@/app/lib/api';
 
 const fallbackCategories = [
   { name: 'Laptop', cat_code: '000' },
@@ -31,6 +30,12 @@ const slugify = (value) =>
     .replace(/(^-|-$)/g, '');
 
 const getCategoryCode = (category) => String(category.cat_code || category.code || slugify(category.name));
+
+const getMediaSrc = (imageUrl) => {
+  if (!imageUrl) return '';
+  if (/^https?:\/\//i.test(imageUrl) || imageUrl.startsWith('/')) return imageUrl;
+  return `${PRODUCT_IMAGE_BASE_URL.replace(/\/$/, '')}/${imageUrl}`;
+};
 
 const getParentCodeFromPath = (code) => {
   const parts = String(code || '').split('-').filter(Boolean);
@@ -137,6 +142,8 @@ function CategoryMenuItem({ category, activeCategory, depth = 0 }) {
 export default function Categoriesslideber() {
   const searchParams = useSearchParams();
   const [categories, setCategories] = useState([]);
+  const [sliders, setSliders] = useState([]);
+  const [activeSlideIndex, setActiveSlideIndex] = useState(0);
   const activeCategory = searchParams.get('category') || '';
 
   useEffect(() => {
@@ -151,9 +158,32 @@ export default function Categoriesslideber() {
     fetchCategories();
   }, []);
 
+  useEffect(() => {
+    const fetchSliders = async () => {
+      try {
+        setSliders(await apiFetch('/sliders'));
+      } catch (error) {
+        console.error(error);
+      }
+    };
+
+    fetchSliders();
+  }, []);
+
+  useEffect(() => {
+    if (sliders.length <= 1) return undefined;
+
+    const timer = setInterval(() => {
+      setActiveSlideIndex((index) => (index + 1) % sliders.length);
+    }, 5500);
+
+    return () => clearInterval(timer);
+  }, [sliders.length]);
+
 
 
   const categoryTree = buildCategoryTree(categories);
+  const activeSlide = sliders[activeSlideIndex] || null;
 
   return (
     <section id="categories" className="bg-slate-950 text-white">
@@ -177,22 +207,52 @@ export default function Categoriesslideber() {
         </aside>
 
         <div className="relative min-h-[280px] overflow-hidden rounded-lg bg-slate-900">
-          <Image
-            src={Slideimage}
-            alt="Featured technology products"
-            fill
-            priority
-            sizes="(min-width: 1024px) calc(100vw - 320px), 100vw"
-            className="object-cover opacity-70"
-          />
+          {activeSlide?.image_url && (
+            <Image
+              src={getMediaSrc(activeSlide.image_url)}
+              alt={activeSlide.title || 'Featured products'}
+              fill
+              priority
+              sizes="(min-width: 1024px) calc(100vw - 320px), 100vw"
+              className="object-cover opacity-75"
+              unoptimized
+            />
+          )}
           <div className="absolute inset-0 bg-slate-950/30" />
           <div className="relative flex min-h-[280px] max-w-2xl flex-col justify-center p-6 sm:p-10">
-            <p className="text-sm font-bold uppercase tracking-wide text-emerald-300">Bangladesh tech store</p>
-            <h1 className="mt-2 text-3xl font-black leading-tight sm:text-5xl">Quality Tech Products</h1>
-            <p className="mt-3 max-w-xl text-sm leading-6 text-slate-100 sm:text-base">
-              Laptops, tablets, gaming PCs and accessories with fast checkout and cash on delivery support.
+            <p className="text-sm font-bold uppercase tracking-wide text-emerald-300">
+              {activeSlide?.subtitle ? 'Featured now' : 'Bangladesh tech store'}
             </p>
+            <h1 className="mt-2 text-3xl font-black leading-tight sm:text-5xl">
+              {activeSlide?.title || 'Quality Tech Products'}
+            </h1>
+            <p className="mt-3 max-w-xl text-sm leading-6 text-slate-100 sm:text-base">
+              {activeSlide?.subtitle || 'Laptops, tablets, gaming PCs and accessories with fast checkout and cash on delivery support.'}
+            </p>
+            {activeSlide?.button_link && (
+              <Link
+                href={activeSlide.button_link}
+                className="mt-5 inline-flex w-fit rounded-md bg-white px-4 py-2 text-sm font-black text-slate-950 transition hover:bg-emerald-300"
+              >
+                {activeSlide.button_text || 'Shop now'}
+              </Link>
+            )}
           </div>
+          {sliders.length > 1 && (
+            <div className="absolute bottom-4 right-4 flex gap-2">
+              {sliders.map((slide, index) => (
+                <button
+                  key={slide.id || index}
+                  type="button"
+                  onClick={() => setActiveSlideIndex(index)}
+                  className={`h-2.5 w-2.5 rounded-full border border-white ${
+                    activeSlideIndex === index ? 'bg-white' : 'bg-white/30'
+                  }`}
+                  aria-label={`Show slide ${index + 1}`}
+                />
+              ))}
+            </div>
+          )}
         </div>
       </div>
     </section>

@@ -7,20 +7,9 @@ import { getProductImageSrc } from '../../components/ProductImage';
 const unique = (items) => Array.from(new Set(items.filter(Boolean)));
 
 function buildImageCandidates(photo) {
-  if (!photo) return ['noimage.jpg'];
+  if (!photo) return ['products/noimage.jpg'];
   if (/^https?:\/\//i.test(photo)) return [photo];
-
-  const dotIndex = photo.lastIndexOf('.');
-  const base = dotIndex > -1 ? photo.slice(0, dotIndex) : photo;
-  const ext = dotIndex > -1 ? photo.slice(dotIndex) : '.jpg';
-
-  return unique([
-    photo,
-    photo.startsWith('large-') ? photo.replace(/^large-/, '') : `large-${photo}`,
-    `${base}-1${ext}`,
-    `${base}-2${ext}`,
-    `${base}-3${ext}`,
-  ]);
+  return [photo];
 }
 
 export default function ProductGallery({ product }) {
@@ -36,9 +25,9 @@ export default function ProductGallery({ product }) {
     setVisibleImages((images) => {
       const nextImages = images.filter((item) => item !== image);
       if (activeImage === image) {
-        setActiveImage(nextImages[0] || 'noimage.jpg');
+        setActiveImage(nextImages[0] || 'products/noimage.jpg');
       }
-      return nextImages.length ? nextImages : ['noimage.jpg'];
+      return nextImages.length ? nextImages : ['products/noimage.jpg'];
     });
   };
 

@@ -1,6 +1,6 @@
 docker build --no-cache \
   --build-arg NEXT_PUBLIC_API_BASE_URL=http://192.168.1.146:3005 \
-  --build-arg NEXT_PUBLIC_PRODUCT_IMAGE_BASE_URL=http://192.168.1.146:9000/products/images/productsimg \
+  --build-arg NEXT_PUBLIC_PRODUCT_IMAGE_BASE_URL=http://192.168.1.146:9000/ecommerce \
   --build-arg NEXT_PUBLIC_SITE_URL=http://192.168.1.146:3000 \
   -t user-ecommerce-frontend_2026-image .
 
@@ -9,6 +9,6 @@ docker run -d \
   --name user-ecommerce-frontend_2026-container \
   -p 3000:3000 \
   -e NEXT_PUBLIC_API_BASE_URL=http://192.168.1.146:3005 \
-  -e NEXT_PUBLIC_PRODUCT_IMAGE_BASE_URL=http://192.168.1.146:9000/products/images/productsimg \
+  -e NEXT_PUBLIC_PRODUCT_IMAGE_BASE_URL=http://192.168.1.146:9000/ecommerce \
   -e NEXT_PUBLIC_SITE_URL=http://192.168.1.146:3000 \
   user-ecommerce-frontend_2026-image

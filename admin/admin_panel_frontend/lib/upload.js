@@ -1,8 +1,15 @@
 import { UPLOAD_URL } from './apiConfig'
 
-export const uploadProductImage = async (file) => {
+export const uploadImages = async (files, options = {}) => {
+  const fileList = Array.from(files || []).filter(Boolean)
+
+  if (!fileList.length) return []
+
   const formData = new FormData()
-  formData.append('photo', file)
+  fileList.forEach((file) => formData.append('photos', file))
+  if (options.productName) formData.append('productName', options.productName)
+  if (options.type) formData.append('type', options.type)
+  if (options.folder) formData.append('folder', options.folder)
 
   let response
 
@@ -30,5 +37,15 @@ export const uploadProductImage = async (file) => {
     throw new Error(data.message || data.err || 'Image upload failed')
   }
 
-  return data.fileName
+  return Array.isArray(data.files) && data.files.length
+    ? data.files.map((file) => file.fileName || file.objectKey).filter(Boolean)
+    : [data.fileName].filter(Boolean)
+}
+
+export const uploadProductImages = async (files, productName = '') =>
+  uploadImages(files, { productName })
+
+export const uploadProductImage = async (file, productName = '') => {
+  const files = await uploadProductImages([file], productName)
+  return files[0] || ''
 }

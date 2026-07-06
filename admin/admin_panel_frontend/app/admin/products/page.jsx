@@ -7,7 +7,7 @@ import { addProduct, deleteProduct, getProducts, updateProduct } from '@/service
 import { getCategories } from '@/services/categoryService'
 import { getBrands } from '@/services/contentService'
 import { PRODUCT_IMAGE_BASE_URL } from '@/lib/apiConfig'
-import { uploadProductImage } from '@/lib/upload'
+import { uploadProductImages } from '@/lib/upload'
 
 const IMAGE_BASE = PRODUCT_IMAGE_BASE_URL
 
@@ -19,7 +19,7 @@ const emptyProduct = {
   price: '',
   quantity: '',
   description: '',
-  photo: null
+  photo: []
 }
 
 const money = (value) =>
@@ -28,6 +28,24 @@ const money = (value) =>
     currency: 'BDT',
     maximumFractionDigits: 0
   }).format(Number(value || 0))
+
+const getImageSrc = (photo) => {
+  const imageName = photo || 'products/noimage.jpg'
+
+  if (/^https?:\/\//i.test(imageName) || imageName.startsWith('/')) {
+    return imageName
+  }
+
+  const base = IMAGE_BASE.replace(/\/$/, '')
+  return `${base}/${imageName}`
+}
+
+const getImageLabel = (images) => {
+  const list = Array.isArray(images) ? images : [images].filter(Boolean)
+  if (!list.length) return 'Browse images'
+  if (list.length === 1) return list[0]?.name || list[0]
+  return `${list.length} images selected`
+}
 
 export default function ProductsPage() {
   const [products, setProducts] = useState([])
@@ -114,11 +132,13 @@ export default function ProductsPage() {
         return
       }
 
-      let fileName = typeof form.photo === 'string' ? form.photo : ''
-
-      if (form.photo instanceof File) {
-        fileName = await uploadProductImage(form.photo)
-      }
+      const selectedImages = Array.isArray(form.photo) ? form.photo : [form.photo].filter(Boolean)
+      const existingImages = selectedImages.filter((image) => typeof image === 'string')
+      const newImages = selectedImages.filter((image) => image instanceof File)
+      const uploadedImages = newImages.length
+        ? await uploadProductImages(newImages, form.name)
+        : []
+      const imageKeys = [...existingImages, ...uploadedImages].filter(Boolean)
 
       const payload = {
         name: form.name.trim(),
@@ -128,7 +148,8 @@ export default function ProductsPage() {
         price: Number(form.price),
         quantity: Number(form.quantity || 0),
         description: form.description,
-        photo: fileName || 'noimage.jpg'
+        photo: imageKeys[0] || 'products/noimage.jpg',
+        images: imageKeys
       }
 
       if (editId) {
@@ -158,7 +179,9 @@ export default function ProductsPage() {
       price: product.price || '',
       quantity: product.quantity || '',
       description: product.description || '',
-      photo: product.photo || ''
+      photo: (product.images || []).map((image) => image.image_url || image).filter(Boolean).length
+        ? (product.images || []).map((image) => image.image_url || image).filter(Boolean)
+        : [product.photo || 'products/noimage.jpg']
     })
   }
 
@@ -252,7 +275,7 @@ export default function ProductsPage() {
                         <div className="flex items-center gap-3">
                           {p.photo && (
                             <Image
-                              src={`${IMAGE_BASE.replace(/\/$/, '')}/${p.photo}`}
+                              src={getImageSrc(p.photo)}
                               alt={p.name || ''}
                               width={40}
                               height={40}
@@ -351,17 +374,18 @@ export default function ProductsPage() {
 
           <label className="block cursor-pointer border p-2">
             <div className="flex justify-between gap-2">
-              <span className="truncate">{form.photo?.name || form.photo || 'Browse image'}</span>
+              <span className="truncate">{getImageLabel(form.photo)}</span>
               <Upload size={16} className="shrink-0" />
             </div>
             <input
               type="file"
               hidden
               accept="image/*"
+              multiple
               onChange={(e) =>
                 setForm((prev) => ({
                   ...prev,
-                  photo: e.target.files?.[0] || null
+                  photo: Array.from(e.target.files || [])
                 }))
               }
             />

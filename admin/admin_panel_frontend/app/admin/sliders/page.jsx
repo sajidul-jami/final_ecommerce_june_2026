@@ -1,8 +1,11 @@
 'use client'
 
 import { useEffect, useState } from 'react'
-import { Images, Pencil, Trash2, X } from 'lucide-react'
+import Image from 'next/image'
+import { Images, Pencil, Trash2, Upload, X } from 'lucide-react'
 import { deleteSlider, getSliders, saveSlider } from '@/services/contentService'
+import { PRODUCT_IMAGE_BASE_URL } from '@/lib/apiConfig'
+import { uploadImages } from '@/lib/upload'
 
 const emptyForm = {
   title: '',
@@ -14,11 +17,19 @@ const emptyForm = {
   status: 'Active'
 }
 
+const getImageSrc = (imageUrl) => {
+  if (!imageUrl) return ''
+  if (/^https?:\/\//i.test(imageUrl) || imageUrl.startsWith('/')) return imageUrl
+  return `${PRODUCT_IMAGE_BASE_URL.replace(/\/$/, '')}/${imageUrl}`
+}
+
 export default function SlidersPage() {
   const [sliders, setSliders] = useState([])
   const [form, setForm] = useState(emptyForm)
+  const [imageFile, setImageFile] = useState(null)
   const [editId, setEditId] = useState(null)
   const [message, setMessage] = useState('')
+  const [saving, setSaving] = useState(false)
 
   const load = async () => setSliders(await getSliders())
 
@@ -28,13 +39,31 @@ export default function SlidersPage() {
 
   const submit = async (event) => {
     event.preventDefault()
+    setSaving(true)
+    setMessage('')
+
     try {
-      await saveSlider({ ...form, sort_order: Number(form.sort_order || 0) }, editId)
+      let imageUrl = form.image_url
+
+      if (imageFile) {
+        const uploaded = await uploadImages([imageFile], { type: 'slideshow' })
+        imageUrl = uploaded[0] || ''
+      }
+
+      if (!imageUrl) {
+        setMessage('Please upload a slideshow image.')
+        return
+      }
+
+      await saveSlider({ ...form, image_url: imageUrl, sort_order: Number(form.sort_order || 0) }, editId)
       setForm(emptyForm)
+      setImageFile(null)
       setEditId(null)
       await load()
     } catch (error) {
       setMessage(error.message)
+    } finally {
+      setSaving(false)
     }
   }
 
@@ -65,6 +94,18 @@ export default function SlidersPage() {
               <p className="text-xs font-semibold uppercase text-slate-500">Order {slider.sort_order}</p>
               <h3 className="mt-1 font-semibold text-slate-950">{slider.title || 'Untitled slide'}</h3>
               <p className="mt-1 line-clamp-2 text-sm text-slate-500">{slider.subtitle}</p>
+              {slider.image_url && (
+                <div className="relative mt-3 aspect-video overflow-hidden rounded-md bg-slate-100">
+                  <Image
+                    src={getImageSrc(slider.image_url)}
+                    alt={slider.title || 'Homepage slide'}
+                    fill
+                    sizes="320px"
+                    className="object-cover"
+                    unoptimized
+                  />
+                </div>
+              )}
               <p className="mt-3 truncate rounded bg-slate-50 p-2 text-xs text-slate-500">{slider.image_url}</p>
               <div className="mt-4 flex justify-end gap-3">
                 <button onClick={() => edit(slider)} title="Edit"><Pencil size={16} /></button>
@@ -78,25 +119,46 @@ export default function SlidersPage() {
       <aside className="h-fit rounded-md border border-slate-200 bg-white p-4 shadow-sm">
         <div className="mb-4 flex items-center justify-between">
           <h3 className="font-semibold">{editId ? `Edit slide #${editId}` : 'Add slide'}</h3>
-          {editId && <button onClick={() => { setEditId(null); setForm(emptyForm) }}><X size={16} /></button>}
+          {editId && <button onClick={() => { setEditId(null); setForm(emptyForm); setImageFile(null) }}><X size={16} /></button>}
         </div>
         <form onSubmit={submit} className="space-y-3">
-          {['title', 'subtitle', 'image_url', 'button_text', 'button_link'].map((field) => (
+          {['title', 'subtitle', 'button_text', 'button_link'].map((field) => (
             <input
               key={field}
               value={form[field]}
               onChange={(e) => setForm({ ...form, [field]: e.target.value })}
               placeholder={field.replace('_', ' ')}
-              required={field === 'image_url'}
               className="w-full rounded-md border p-2"
             />
           ))}
+          <label className="block cursor-pointer rounded-md border p-2">
+            <div className="flex items-center justify-between gap-2">
+              <span className="truncate text-sm">{imageFile?.name || form.image_url || 'Upload slideshow image'}</span>
+              <Upload size={16} className="shrink-0" />
+            </div>
+            <input
+              type="file"
+              hidden
+              accept="image/*"
+              onChange={(event) => setImageFile(event.target.files?.[0] || null)}
+            />
+          </label>
+          {form.image_url && !imageFile && (
+            <input
+              value={form.image_url}
+              onChange={(e) => setForm({ ...form, image_url: e.target.value })}
+              placeholder="slideshow/image.jpg"
+              className="w-full rounded-md border p-2 text-xs"
+            />
+          )}
           <input type="number" value={form.sort_order} onChange={(e) => setForm({ ...form, sort_order: e.target.value })} className="w-full rounded-md border p-2" />
           <select value={form.status} onChange={(e) => setForm({ ...form, status: e.target.value })} className="w-full rounded-md border p-2">
             <option>Active</option>
             <option>Inactive</option>
           </select>
-          <button className="w-full rounded-md bg-slate-950 p-2 font-semibold text-white">Save slide</button>
+          <button disabled={saving} className="w-full rounded-md bg-slate-950 p-2 font-semibold text-white disabled:opacity-60">
+            {saving ? 'Saving...' : 'Save slide'}
+          </button>
         </form>
       </aside>
     </div>
