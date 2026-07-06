@@ -6,8 +6,8 @@ services:
       - "${MINIO_API_PORT:-9000}:9000"
       - "${MINIO_CONSOLE_PORT:-9001}:9001"
     environment:
-      MINIO_ROOT_USER: ${MINIO_ROOT_USER:-ecommerce_admin}
-      MINIO_ROOT_PASSWORD: ${MINIO_ROOT_PASSWORD:-change_me_minio_password}
+      MINIO_ROOT_USER: admin
+      MINIO_ROOT_PASSWORD: password123
     command: server /data --console-address ":9001"
     volumes:
       - ecommerce_minio_data:/data
@@ -19,8 +19,8 @@ services:
     environment:
       MINIO_HOST: minio
       MINIO_PORT: 9000
-      MINIO_ROOT_USER: ${MINIO_ROOT_USER:-ecommerce_admin}
-      MINIO_ROOT_PASSWORD: ${MINIO_ROOT_PASSWORD:-change_me_minio_password}
+      MINIO_ACCESS_KEY: ${MINIO_ACCESS_KEY:-admin}
+      MINIO_SECRET_KEY: ${MINIO_SECRET_KEY:-password123}
       MINIO_BUCKET: ${MINIO_BUCKET:-ecommerce}
     volumes:
       - ./scripts/minio-init.sh:/scripts/minio-init.sh:ro
