@@ -6,7 +6,7 @@ const CartContext = createContext();
 
 export function CartProvider({ children }) {
   const [cart, setCart] = useState([]);
-  const [toast, setToast] = useState('');
+  const [toast, setToast] = useState(null);
   const [cartPulseKey, setCartPulseKey] = useState(0);
 
   useEffect(() => {
@@ -21,8 +21,9 @@ export function CartProvider({ children }) {
   }, [cart]);
 
   const addToCart = (item, amount = 1) => {
-    let message = 'Cart added';
+    let message = 'Added to cart';
     let added = false;
+    const productName = item.name || 'Product';
 
     setCart((prevCart) => {
       const itemExists = prevCart.find((cartItem) => Number(cartItem.id) === Number(item.id));
@@ -57,7 +58,11 @@ export function CartProvider({ children }) {
       added = true;
       return [...prevCart, { ...item, stock_quantity: incomingStock, quantity: Math.min(amount, incomingStock) }];
     });
-    setToast(added ? 'Cart added' : message);
+    setToast({
+      type: added ? 'success' : 'error',
+      title: added ? 'Added to cart' : 'Cart update failed',
+      message: added ? `${productName} has been added to your cart.` : message
+    });
     if (added) {
       setCartPulseKey((key) => key + 1);
     }
@@ -99,7 +104,7 @@ export function CartProvider({ children }) {
   useEffect(() => {
     if (!toast) return undefined;
 
-    const timer = setTimeout(() => setToast(''), 1800);
+    const timer = setTimeout(() => setToast(null), 2600);
     return () => clearTimeout(timer);
   }, [toast]);
 
@@ -121,8 +126,25 @@ export function CartProvider({ children }) {
     >
       {children}
       {toast && (
-        <div className={`fixed right-4 top-20 z-50 rounded-md px-4 py-3 text-sm font-bold text-white shadow-lg ${toast === 'Cart added' ? 'bg-emerald-600' : 'bg-rose-600'}`}>
-          {toast}
+        <div className="fixed right-3 top-24 z-[80] w-[calc(100vw-1.5rem)] max-w-sm overflow-hidden rounded-lg border border-slate-200 bg-white text-slate-950 shadow-2xl sm:right-4">
+          <div className={`h-1 ${toast.type === 'success' ? 'bg-emerald-600' : 'bg-rose-600'}`} />
+          <div className="flex gap-3 p-4">
+            <div className={`flex h-9 w-9 shrink-0 items-center justify-center rounded-full text-sm font-black text-white ${toast.type === 'success' ? 'bg-emerald-600' : 'bg-rose-600'}`}>
+              {toast.type === 'success' ? '✓' : '!'}
+            </div>
+            <div className="min-w-0">
+              <p className="font-bold">{toast.title}</p>
+              <p className="mt-1 text-sm leading-5 text-slate-600">{toast.message}</p>
+            </div>
+            <button
+              type="button"
+              onClick={() => setToast(null)}
+              className="ml-auto h-7 w-7 shrink-0 rounded-md text-slate-400 hover:bg-slate-100 hover:text-slate-700"
+              aria-label="Close notification"
+            >
+              ×
+            </button>
+          </div>
         </div>
       )}
     </CartContext.Provider>

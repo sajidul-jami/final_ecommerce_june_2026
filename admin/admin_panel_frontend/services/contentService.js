@@ -44,3 +44,13 @@ export const saveSocialLink = (data, id) => apiRequest(`/content/social-links${i
   body: data
 })
 export const deleteSocialLink = (id) => apiRequest(`/content/social-links/${id}`, { method: 'DELETE' })
+
+export const getSiteSettings = async () => {
+  const res = await apiRequest('/content/site-settings')
+  return res.data || {}
+}
+
+export const saveSiteSettings = (data) => apiRequest('/content/site-settings', {
+  method: 'PUT',
+  body: data
+})

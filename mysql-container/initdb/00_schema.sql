@@ -51,9 +51,13 @@ CREATE TABLE category (
 CREATE TABLE brands (
     id INT AUTO_INCREMENT PRIMARY KEY,
     name VARCHAR(100) NOT NULL UNIQUE,
-    slug VARCHAR(150),
+    slug VARCHAR(150) UNIQUE,
     logo VARCHAR(500),
+    description TEXT,
     status ENUM('Active', 'Inactive') DEFAULT 'Active',
+    seo_title VARCHAR(180),
+    seo_description VARCHAR(500),
+    seo_keywords VARCHAR(500),
     created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
 );
 
@@ -64,6 +68,7 @@ CREATE TABLE products (
     id INT AUTO_INCREMENT PRIMARY KEY,
     category_id INT NOT NULL,
     brand_id INT NULL,
+    country_of_origin VARCHAR(100),
     name TEXT NOT NULL,
     description TEXT,
     slug VARCHAR(200),
@@ -189,6 +194,35 @@ CREATE TABLE IF NOT EXISTS social_links (
     created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
 );
 
+CREATE TABLE IF NOT EXISTS site_settings (
+    id TINYINT PRIMARY KEY DEFAULT 1,
+    website_name VARCHAR(150),
+    website_logo VARCHAR(500),
+    footer_logo VARCHAR(500),
+    favicon VARCHAR(500),
+    website_description TEXT,
+    footer_title VARCHAR(150),
+    footer_description TEXT,
+    footer_quick_links TEXT,
+    contact_email VARCHAR(150),
+    phone VARCHAR(50),
+    whatsapp VARCHAR(50),
+    office_address TEXT,
+    google_map TEXT,
+    support_email VARCHAR(150),
+    footer_copyright VARCHAR(255),
+    meta_title VARCHAR(180),
+    meta_description VARCHAR(500),
+    meta_keywords VARCHAR(500),
+    google_analytics TEXT,
+    google_tag_manager TEXT,
+    facebook_pixel TEXT,
+    inside_dhaka_delivery_charge DECIMAL(10,2) DEFAULT 80,
+    outside_dhaka_delivery_charge DECIMAL(10,2) DEFAULT 120,
+    updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+    CHECK (id = 1)
+);
+
 CREATE TABLE IF NOT EXISTS user_addresses (
     id INT AUTO_INCREMENT PRIMARY KEY,
     user_id INT NOT NULL,
@@ -298,9 +332,22 @@ CALL add_column_if_missing('orders', 'delivery_phone', 'VARCHAR(30) NULL');
 CALL add_column_if_missing('orders', 'delivery_address', 'TEXT NULL');
 CALL add_column_if_missing('orders', 'delivery_city', 'VARCHAR(100) NULL');
 CALL add_column_if_missing('orders', 'delivery_area', 'VARCHAR(100) NULL');
+CALL add_column_if_missing('orders', 'delivery_zone', 'ENUM(''Inside Dhaka'', ''Outside Dhaka'') NULL');
+CALL add_column_if_missing('orders', 'delivery_charge', 'DECIMAL(10,2) DEFAULT 0');
 CALL add_column_if_missing('orders', 'delivery_email', 'VARCHAR(150) NULL');
 CALL add_column_if_missing('orders', 'order_notes', 'TEXT NULL');
 CALL add_column_if_missing('orders', 'checkout_type', 'ENUM(''guest'', ''user'') DEFAULT ''user''');
+CALL add_column_if_missing('site_settings', 'footer_title', 'VARCHAR(150) NULL');
+CALL add_column_if_missing('site_settings', 'footer_description', 'TEXT NULL');
+CALL add_column_if_missing('site_settings', 'footer_quick_links', 'TEXT NULL');
+CALL add_column_if_missing('brands', 'description', 'TEXT NULL');
+CALL add_column_if_missing('brands', 'seo_title', 'VARCHAR(180) NULL');
+CALL add_column_if_missing('brands', 'seo_description', 'VARCHAR(500) NULL');
+CALL add_column_if_missing('brands', 'seo_keywords', 'VARCHAR(500) NULL');
+CALL add_column_if_missing('products', 'brand_id', 'INT NULL');
+CALL add_column_if_missing('products', 'country_of_origin', 'VARCHAR(100) NULL');
+CALL add_column_if_missing('site_settings', 'inside_dhaka_delivery_charge', 'DECIMAL(10,2) DEFAULT 80');
+CALL add_column_if_missing('site_settings', 'outside_dhaka_delivery_charge', 'DECIMAL(10,2) DEFAULT 120');
 CALL add_column_if_missing('support_tickets', 'assigned_admin', 'INT NULL');
 CALL add_column_if_missing('support_tickets', 'priority', 'ENUM(''Low'', ''Medium'', ''High'') DEFAULT ''Medium''');
 CALL add_column_if_missing('product_reviews', 'admin_reply', 'TEXT NULL');
@@ -312,6 +359,9 @@ CALL add_index_if_missing('support_tickets', 'idx_support_tickets_status', '(sta
 CALL add_index_if_missing('product_images', 'idx_product_images_product', '(product_id, sort_order)');
 CALL add_index_if_missing('offers', 'idx_offers_product_status', '(product_id, status, start_date, end_date)');
 CALL add_index_if_missing('brands', 'idx_brands_status_name', '(status, name)');
+CALL add_index_if_missing('brands', 'idx_brands_slug', '(slug)');
+CALL add_index_if_missing('products', 'idx_products_brand', '(brand_id)');
+CALL add_index_if_missing('products', 'idx_products_country_of_origin', '(country_of_origin)');
 
 DROP PROCEDURE IF EXISTS add_column_if_missing;
 DROP PROCEDURE IF EXISTS add_index_if_missing;

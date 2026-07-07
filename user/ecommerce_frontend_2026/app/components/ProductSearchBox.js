@@ -94,9 +94,9 @@ export default function ProductSearchBox({
     router.push(params.toString() ? `/?${params.toString()}#shop` : '/#shop');
   };
 
-  const openProduct = (id) => {
+  const openProduct = (item) => {
     setOpen(false);
-    router.push(`/singleproduct/${id}`);
+    router.push(`/product/${item.slug || item.id}`);
   };
 
   const handleBlur = () => {
@@ -139,7 +139,7 @@ export default function ProductSearchBox({
                 key={item.id}
                 type="button"
                 onMouseDown={(event) => event.preventDefault()}
-                onClick={() => openProduct(item.id)}
+                onClick={() => openProduct(item)}
                 className="flex w-full items-center gap-3 px-3 py-2 text-left transition hover:bg-rose-50"
               >
                 <span className="relative h-12 w-12 shrink-0 overflow-hidden rounded-md border border-slate-200 bg-slate-50">

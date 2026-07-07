@@ -1,7 +1,10 @@
 import { Suspense } from "react";
-import Categoriesslideber from "./components/Categoriesslideber.js";
-import Limitedtimeoffer from "./components/Limitedtimeoffer.js";
+import { permanentRedirect } from "next/navigation";
+import Categoriesslideber, { CategoryHeroSkeleton } from "./components/Categoriesslideber.js";
+import Limitedtimeoffer, { OffersSkeleton } from "./components/Limitedtimeoffer.js";
 import Allproducts from "./components/Allproducts.js";
+import ProductGridSkeleton from "./components/ProductGridSkeleton.js";
+import { getSiteSettings } from './lib/siteSettings';
 
 const API_BASE_URL = process.env.NEXT_PUBLIC_API_BASE_URL;
 
@@ -22,11 +25,12 @@ export async function generateMetadata({ searchParams }) {
   const params = await searchParams;
   const search = params?.search || '';
   const category = params?.category || '';
+  const settings = await getSiteSettings();
 
   if (search) {
     return {
       title: `Search results for ${search}`,
-      description: `Shop ${search} products in Bangladesh with fast checkout and cash on delivery from TechTrends BD.`,
+      description: `Shop ${search} products in Bangladesh with fast checkout and cash on delivery from ${settings.website_name}.`,
       alternates: { canonical: `/?search=${encodeURIComponent(search)}` },
     };
   }
@@ -37,27 +41,39 @@ export async function generateMetadata({ searchParams }) {
 
     return {
       title: `${label} Products`,
-      description: `Browse ${label} products with reliable local delivery in Bangladesh from TechTrends BD.`,
+      description: `Browse ${label} products with reliable local delivery in Bangladesh from ${settings.website_name}.`,
       alternates: { canonical: `/?category=${encodeURIComponent(category)}` },
     };
   }
 
   return {
-    title: { absolute: 'TechTrends BD - Quality Tech Products in Bangladesh' },
-    description: 'Shop laptops, tablets, phones, gaming PCs and accessories in Bangladesh with fast checkout and cash on delivery.',
+    title: { absolute: settings.meta_title || settings.website_name },
+    description: settings.meta_description || settings.website_description,
+    keywords: String(settings.meta_keywords || '').split(',').map((keyword) => keyword.trim()).filter(Boolean),
     alternates: { canonical: '/' },
   };
 }
 
-export default function Home() {
+export default async function Home({ searchParams }) {
+  const params = await searchParams;
+  const category = params?.category || '';
+  const search = params?.search || '';
+  const sort = params?.sort || '';
+
+  if (category && !search && !sort) {
+    permanentRedirect(`/category/${encodeURIComponent(category)}`);
+  }
+
   return (
     <main>
-      <Suspense fallback={null}>
+      <Suspense fallback={<CategoryHeroSkeleton />}>
         <Categoriesslideber />
       </Suspense>
-      <Limitedtimeoffer />
-      <Suspense fallback={<div className="mx-auto max-w-7xl px-3 py-6 text-slate-500 sm:px-5">Loading products...</div>}>
-        <Allproducts />
+      <Suspense fallback={<OffersSkeleton />}>
+        <Limitedtimeoffer />
+      </Suspense>
+      <Suspense fallback={<section id="shop" className="mx-auto w-full max-w-[1180px] px-2 py-5 sm:px-3 lg:py-6"><ProductGridSkeleton /></section>}>
+        <Allproducts search={search} category={category} sort={sort || 'newest'} />
       </Suspense>
     </main>
   );

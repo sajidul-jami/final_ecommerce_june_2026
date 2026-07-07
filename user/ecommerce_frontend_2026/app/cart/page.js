@@ -6,6 +6,7 @@ import { useRouter } from 'next/navigation';
 import { useCart } from '../context/CartContext';
 import { useUser } from '../context/UserContext';
 import { apiFetch } from '../lib/api';
+import { defaultSiteSettings } from '../lib/siteSettings';
 import ProductImage from '../components/ProductImage';
 
 const taka = new Intl.NumberFormat('en-BD', {
@@ -31,7 +32,10 @@ export default function CartPage() {
   const [isCheckoutOpen, setIsCheckoutOpen] = useState(false);
   const [checkoutForm, setCheckoutForm] = useState(emptyCheckoutForm);
   const [paymentMethod, setPaymentMethod] = useState('Cash On Delivery');
+  const [deliveryZone, setDeliveryZone] = useState('');
+  const [settings, setSettings] = useState(defaultSiteSettings);
   const [checkoutError, setCheckoutError] = useState('');
+  const [cartNotice, setCartNotice] = useState('');
   const [isSubmittingOrder, setIsSubmittingOrder] = useState(false);
   const [successOrderId, setSuccessOrderId] = useState('');
   const hasInitializedSelection = useRef(false);
@@ -73,6 +77,12 @@ export default function CartPage() {
     });
   }, [isCheckoutOpen, user]);
 
+  useEffect(() => {
+    apiFetch('/site-settings')
+      .then((data) => setSettings({ ...defaultSiteSettings, ...data }))
+      .catch(() => setSettings(defaultSiteSettings));
+  }, []);
+
   const toggleItemSelection = (itemId) => {
     const numericId = Number(itemId);
     setSelectedItems((items) =>
@@ -86,6 +96,12 @@ export default function CartPage() {
     (total, item) => total + Number(item.price || 0) * Number(item.quantity || 0),
     0
   );
+  const deliveryCharge = deliveryZone === 'Inside Dhaka'
+    ? Number(settings.inside_dhaka_delivery_charge || 80)
+    : deliveryZone === 'Outside Dhaka'
+      ? Number(settings.outside_dhaka_delivery_charge || 120)
+      : 0;
+  const finalTotal = checkoutTotal + deliveryCharge;
 
   const toggleSelectAll = () => {
     setSelectedItems(allSelected ? [] : cart.map((item) => Number(item.id)));
@@ -98,10 +114,11 @@ export default function CartPage() {
 
   const handleBuyNow = () => {
     if (selectedProducts.length === 0) {
-      alert('Please select at least one item to purchase.');
+      setCartNotice('Please select at least one item to purchase.');
       return;
     }
 
+    setCartNotice('');
     setCheckoutItems(selectedProducts);
     setIsCheckoutOpen(true);
 
@@ -129,8 +146,8 @@ export default function CartPage() {
       return;
     }
 
-    if (!checkoutForm.full_name || !checkoutForm.phone_number || !checkoutForm.address || !checkoutForm.city) {
-      setCheckoutError('Name, phone, address and city are required.');
+    if (!checkoutForm.full_name || !checkoutForm.phone_number || !checkoutForm.address || !checkoutForm.city || !deliveryZone) {
+      setCheckoutError('Name, phone, address, city and delivery area are required.');
       return;
     }
 
@@ -149,6 +166,7 @@ export default function CartPage() {
           delivery_address: checkoutForm.address,
           delivery_city: checkoutForm.city,
           delivery_area: checkoutForm.area,
+          delivery_zone: deliveryZone,
           order_notes: checkoutForm.notes,
           products: selectedProducts.map((product) => ({
             id: product.id,
@@ -161,6 +179,7 @@ export default function CartPage() {
       sessionStorage.removeItem('checkoutItems');
       setSuccessOrderId(order.orderId);
       setSelectedItems([]);
+      setDeliveryZone('');
     } catch (error) {
       setCheckoutError(error.message || 'Checkout failed.');
     } finally {
@@ -172,6 +191,7 @@ export default function CartPage() {
     setIsCheckoutOpen(false);
     setCheckoutError('');
     setSuccessOrderId('');
+    setDeliveryZone('');
   };
 
   const continueShopping = () => {
@@ -181,6 +201,21 @@ export default function CartPage() {
 
   return (
     <main className="min-h-screen bg-slate-50 px-3 py-6 text-slate-950 sm:px-5">
+      {cartNotice && (
+        <div className="fixed right-3 top-24 z-[80] w-[calc(100vw-1.5rem)] max-w-sm overflow-hidden rounded-lg border border-amber-200 bg-white text-slate-950 shadow-2xl sm:right-4">
+          <div className="h-1 bg-amber-500" />
+          <div className="flex gap-3 p-4">
+            <div className="flex h-9 w-9 shrink-0 items-center justify-center rounded-full bg-amber-500 text-sm font-black text-white">!</div>
+            <div className="min-w-0">
+              <p className="font-bold">Select product</p>
+              <p className="mt-1 text-sm leading-5 text-slate-600">{cartNotice}</p>
+            </div>
+            <button type="button" onClick={() => setCartNotice('')} className="ml-auto h-7 w-7 shrink-0 rounded-md text-slate-400 hover:bg-slate-100 hover:text-slate-700" aria-label="Close notification">
+              ×
+            </button>
+          </div>
+        </div>
+      )}
       <div className="mx-auto max-w-6xl">
         <div className="mb-5 flex flex-col gap-2 sm:flex-row sm:items-end sm:justify-between">
           <div>
@@ -306,6 +341,9 @@ export default function CartPage() {
 
             {successOrderId ? (
               <div className="p-6 text-center">
+                <div className="mx-auto flex h-14 w-14 items-center justify-center rounded-full bg-emerald-600 text-2xl font-black text-white">
+                  ✓
+                </div>
                 <p className="text-sm font-bold uppercase tracking-wide text-emerald-600">Order placed</p>
                 <h3 className="mt-2 text-2xl font-black text-slate-950">Thank you for your order.</h3>
                 <p className="mt-2 text-slate-600">Your order ID is #{successOrderId}. We will contact you soon.</p>
@@ -390,6 +428,19 @@ export default function CartPage() {
                       />
                     </label>
                     <label className="text-sm font-semibold text-slate-700">
+                      Delivery area <span className="text-rose-600">*</span>
+                      <select
+                        value={deliveryZone}
+                        onChange={(event) => setDeliveryZone(event.target.value)}
+                        className="mt-1 w-full rounded-md border border-slate-300 bg-white px-3 py-2 text-slate-950 outline-none focus:border-slate-950"
+                        required
+                      >
+                        <option value="">Select delivery area</option>
+                        <option value="Inside Dhaka">Inside Dhaka - {taka.format(Number(settings.inside_dhaka_delivery_charge || 80))}</option>
+                        <option value="Outside Dhaka">Outside Dhaka - {taka.format(Number(settings.outside_dhaka_delivery_charge || 120))}</option>
+                      </select>
+                    </label>
+                    <label className="text-sm font-semibold text-slate-700">
                       Payment
                       <select
                         value={paymentMethod}
@@ -448,8 +499,16 @@ export default function CartPage() {
                     ))}
                   </div>
                   <div className="mt-5 flex justify-between border-t border-slate-200 pt-4 text-lg font-black text-slate-950">
-                    <span>Total</span>
+                    <span>Subtotal</span>
                     <span>{taka.format(checkoutTotal)}</span>
+                  </div>
+                  <div className="mt-2 flex justify-between text-sm font-bold text-slate-600">
+                    <span>Delivery Charge</span>
+                    <span>{deliveryZone ? taka.format(deliveryCharge) : 'Select area'}</span>
+                  </div>
+                  <div className="mt-3 flex justify-between border-t border-slate-200 pt-4 text-lg font-black text-slate-950">
+                    <span>Total</span>
+                    <span>{taka.format(finalTotal)}</span>
                   </div>
                   <button
                     type="submit"

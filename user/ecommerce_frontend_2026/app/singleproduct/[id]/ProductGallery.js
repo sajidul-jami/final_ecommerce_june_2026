@@ -39,9 +39,9 @@ export default function ProductGallery({ product }) {
   };
 
   return (
-    <div className="space-y-3">
+    <div className="mx-auto w-full max-w-[560px] space-y-2 md:max-w-none">
       <div
-        className="group relative aspect-square overflow-hidden rounded-lg bg-slate-100"
+        className="group relative aspect-square overflow-hidden rounded-md bg-white"
         onPointerMove={handlePointerMove}
         onPointerLeave={() => setZoomOrigin('50% 50%')}
       >
@@ -50,15 +50,15 @@ export default function ProductGallery({ product }) {
           alt={`Image of ${product.name}`}
           fill
           priority
-          sizes="(max-width: 1024px) 100vw, 420px"
-          className="object-contain p-5 transition duration-300 md:group-hover:scale-150"
+          sizes="(max-width: 768px) 96vw, (max-width: 1280px) 48vw, 580px"
+          className="object-contain p-1.5 transition duration-300 sm:p-2 md:group-hover:scale-125"
           style={{ transformOrigin: zoomOrigin }}
           onError={() => hideImage(activeImage)}
         />
       </div>
 
       {visibleImages.length > 1 && (
-        <div className="grid grid-cols-5 gap-2">
+        <div className="grid grid-cols-5 gap-1.5 sm:gap-2">
           {visibleImages.map((image) => (
             <button
               key={image}
@@ -75,7 +75,7 @@ export default function ProductGallery({ product }) {
                 alt={`${product.name} thumbnail`}
                 fill
                 sizes="80px"
-                className="object-contain p-2"
+                className="object-contain p-1"
                 onError={() => hideImage(image)}
               />
             </button>

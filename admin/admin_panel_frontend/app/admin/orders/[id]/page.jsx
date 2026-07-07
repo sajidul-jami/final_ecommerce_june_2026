@@ -70,12 +70,14 @@ export default function OrderDetailsPage({ params }) {
                 {[order.phone, order.address].filter(Boolean).join(' · ')}
               </p>
             )}
-            {(order.delivery_city || order.delivery_area || order.order_notes || order.checkout_type === 'guest') && (
+            {(order.delivery_city || order.delivery_area || order.delivery_zone || order.order_notes || order.checkout_type === 'guest') && (
               <p className="mt-1 text-sm text-slate-500">
                 {[
                   order.checkout_type === 'guest' ? 'Guest checkout' : '',
                   order.delivery_city,
                   order.delivery_area,
+                  order.delivery_zone,
+                  order.delivery_charge ? `Delivery ${money(order.delivery_charge)}` : '',
                   order.order_notes,
                 ].filter(Boolean).join(' · ')}
               </p>
@@ -87,7 +89,7 @@ export default function OrderDetailsPage({ params }) {
             )}
           </div>
 
-          <div className="grid gap-3 p-4 sm:grid-cols-2 sm:gap-4 sm:p-5 md:grid-cols-3">
+          <div className="grid gap-3 p-4 sm:grid-cols-2 sm:gap-4 sm:p-5 md:grid-cols-4">
             <div className="rounded-md bg-slate-50 p-4">
               <p className="text-sm text-slate-500">Total</p>
               <p className="mt-1 text-xl font-semibold text-slate-950">{money(order.total_amount)}</p>
@@ -99,6 +101,11 @@ export default function OrderDetailsPage({ params }) {
             <div className="rounded-md bg-slate-50 p-4">
               <p className="text-sm text-slate-500">Status</p>
               <p className="mt-1 font-semibold text-slate-950">{order.order_status}</p>
+            </div>
+            <div className="rounded-md bg-slate-50 p-4">
+              <p className="text-sm text-slate-500">Delivery</p>
+              <p className="mt-1 font-semibold text-slate-950">{order.delivery_zone || 'Not selected'}</p>
+              <p className="mt-1 text-sm text-slate-500">{money(order.delivery_charge || 0)}</p>
             </div>
           </div>
 

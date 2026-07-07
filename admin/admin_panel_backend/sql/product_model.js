@@ -23,6 +23,43 @@ const normalizeImages = (images, fallbackPhoto, productName) => {
     }));
 };
 
+const slugify = (value = '') =>
+    String(value)
+        .toLowerCase()
+        .trim()
+        .replace(/[^a-z0-9]+/g, '-')
+        .replace(/(^-|-$)/g, '') || 'product';
+
+const uniqueProductSlug = (name, requestedSlug = '', excludeId = null) => new Promise((resolve, reject) => {
+    const baseSlug = slugify(requestedSlug || name);
+    let slug = baseSlug;
+    let suffix = 2;
+
+    const check = () => {
+        const params = [slug];
+        let excludeSql = '';
+
+        if (excludeId) {
+            excludeSql = ' AND id <> ?';
+            params.push(excludeId);
+        }
+
+        db.query(`SELECT id FROM products WHERE slug = ?${excludeSql} LIMIT 1`, params, (err, rows) => {
+            if (err) {
+                if (missingColumn(err)) return resolve(baseSlug);
+                return reject(err);
+            }
+
+            if (!rows.length) return resolve(slug);
+            slug = `${baseSlug}-${suffix}`;
+            suffix += 1;
+            check();
+        });
+    };
+
+    check();
+});
+
 const attachProductImages = (rows, callback) => {
     const productRows = Array.isArray(rows) ? rows : [];
     const productIds = productRows.map((row) => Number(row.id)).filter(Boolean);
@@ -126,10 +163,10 @@ const getProductById = (id, callback) => {
 
 // ADD
 const addProduct = (data, callback) => {
-    const queryWithBrand = `
+    const queryWithExtras = `
         INSERT INTO products
-        (category_id, brand_id, name, sku, price, quantity, description, photo)
-        VALUES (?, ?, ?, ?, ?, ?, ?, ?)
+        (category_id, brand_id, country_of_origin, name, slug, sku, price, quantity, description, photo)
+        VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
     `;
     const query = `
         INSERT INTO products 
@@ -155,28 +192,32 @@ const addProduct = (data, callback) => {
         data.photo
     ], finish);
 
-    if (!data.brand_id) return fallback();
-
-    db.query(queryWithBrand, [
-        data.category_id,
-        data.brand_id,
-        data.name,
-        data.sku,
-        data.price,
-        data.quantity,
-        data.description,
-        data.photo
-    ], (err, result) => {
-        if (err && missingColumn(err)) return fallback();
-        finish(err, result);
-    });
+    uniqueProductSlug(data.name, data.slug)
+        .then((safeSlug) => {
+            db.query(queryWithExtras, [
+                data.category_id,
+                data.brand_id || null,
+                data.country_of_origin || null,
+                data.name,
+                safeSlug,
+                data.sku,
+                data.price,
+                data.quantity,
+                data.description,
+                data.photo
+            ], (err, result) => {
+                if (err && missingColumn(err)) return fallback();
+                finish(err, result);
+            });
+        })
+        .catch(callback);
 };
 
 // UPDATE
 const updateProduct = (id, data, callback) => {
-    const queryWithBrand = `
+    const queryWithExtras = `
         UPDATE products
-        SET category_id=?, brand_id=?, name=?, sku=?, price=?, quantity=?, description=?, photo=?
+        SET category_id=?, brand_id=?, country_of_origin=?, name=?, slug=?, sku=?, price=?, quantity=?, description=?, photo=?
         WHERE id=?
     `;
     const query = `
@@ -204,22 +245,26 @@ const updateProduct = (id, data, callback) => {
         id
     ], finish);
 
-    if (!data.brand_id) return fallback();
-
-    db.query(queryWithBrand, [
-        data.category_id,
-        data.brand_id,
-        data.name,
-        data.sku,
-        data.price,
-        data.quantity,
-        data.description,
-        data.photo,
-        id
-    ], (err, result) => {
-        if (err && missingColumn(err)) return fallback();
-        finish(err, result);
-    });
+    uniqueProductSlug(data.name, data.slug, id)
+        .then((safeSlug) => {
+            db.query(queryWithExtras, [
+                data.category_id,
+                data.brand_id || null,
+                data.country_of_origin || null,
+                data.name,
+                safeSlug,
+                data.sku,
+                data.price,
+                data.quantity,
+                data.description,
+                data.photo,
+                id
+            ], (err, result) => {
+                if (err && missingColumn(err)) return fallback();
+                finish(err, result);
+            });
+        })
+        .catch(callback);
 };
 
 // DELETE

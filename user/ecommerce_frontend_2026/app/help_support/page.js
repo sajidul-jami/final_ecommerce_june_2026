@@ -3,10 +3,12 @@
 import { useEffect, useState } from 'react';
 import { apiFetch } from '../lib/api';
 import { useUser } from '../context/UserContext';
+import { defaultSiteSettings } from '../lib/siteSettings';
 
 export default function HelpSupportPage() {
   const { user } = useUser();
   const [message, setMessage] = useState('');
+  const [settings, setSettings] = useState(defaultSiteSettings);
   const [form, setForm] = useState({
     name: '',
     email: '',
@@ -25,6 +27,12 @@ export default function HelpSupportPage() {
       phone_number: user.phone_number || '',
     }));
   }, [user]);
+
+  useEffect(() => {
+    apiFetch('/site-settings')
+      .then((data) => setSettings({ ...defaultSiteSettings, ...data }))
+      .catch(() => setSettings(defaultSiteSettings));
+  }, []);
 
   const handleChange = (event) => {
     setForm((current) => ({ ...current, [event.target.name]: event.target.value }));
@@ -88,9 +96,18 @@ export default function HelpSupportPage() {
         <aside className="h-fit rounded-lg bg-white p-6 shadow-sm">
           <h2 className="text-xl font-black">Contact Info</h2>
           <div className="mt-4 space-y-3 text-sm text-slate-600">
-            <p><span className="font-bold text-slate-950">Phone:</span> +880 1700-000000</p>
-            <p><span className="font-bold text-slate-950">Email:</span> support@techtrendsbd.com</p>
-            <p><span className="font-bold text-slate-950">Address:</span> Dhaka, Bangladesh</p>
+            {settings.phone && <p><span className="font-bold text-slate-950">Phone:</span> {settings.phone}</p>}
+            {settings.whatsapp && <p><span className="font-bold text-slate-950">WhatsApp:</span> {settings.whatsapp}</p>}
+            {settings.support_email && <p><span className="font-bold text-slate-950">Support Email:</span> {settings.support_email}</p>}
+            {settings.contact_email && settings.contact_email !== settings.support_email && <p><span className="font-bold text-slate-950">Email:</span> {settings.contact_email}</p>}
+            {settings.office_address && <p><span className="font-bold text-slate-950">Address:</span> {settings.office_address}</p>}
+            {settings.google_map && (
+              <p>
+                <a href={settings.google_map} target="_blank" rel="noopener noreferrer" className="font-bold text-rose-600 hover:text-slate-950">
+                  Open Google Map
+                </a>
+              </p>
+            )}
             <p><span className="font-bold text-slate-950">Hours:</span> 10:00 AM - 8:00 PM</p>
           </div>
         </aside>

@@ -75,10 +75,17 @@ export default function UsersPage() {
               <div className="flex items-start justify-between gap-4">
                 <div>
                   <h4 className="font-semibold text-slate-950">{customer.full_name || 'Unnamed customer'}</h4>
-                  <p className="mt-1 text-xs text-slate-500">Customer #{customer.id}</p>
+                  <p className="mt-1 text-xs text-slate-500">
+                    {customer.customer_type || 'Registered'} customer {customer.customer_id ? `#${customer.customer_id}` : ''}
+                    {Number(customer.order_count || 0) > 0 ? ` | ${customer.order_count} guest order(s)` : ''}
+                  </p>
                 </div>
-                <span className="rounded-full bg-emerald-50 px-2.5 py-1 text-xs font-semibold text-emerald-700 ring-1 ring-emerald-600/20">
-                  Active
+                <span className={`rounded-full px-2.5 py-1 text-xs font-semibold ring-1 ${
+                  customer.customer_type === 'Guest'
+                    ? 'bg-amber-50 text-amber-700 ring-amber-600/20'
+                    : 'bg-emerald-50 text-emerald-700 ring-emerald-600/20'
+                }`}>
+                  {customer.customer_type === 'Guest' ? 'Guest' : 'Active'}
                 </span>
               </div>
               <div className="mt-4 space-y-2 text-sm text-slate-600">

@@ -1,11 +1,13 @@
 'use client';
 
-import { useCallback, useEffect, useState } from 'react';
+import { useCallback, useEffect, useMemo, useState } from 'react';
+import Link from 'next/link';
 import { useRouter } from 'next/navigation';
 import RelatedProducts from '../../components/Related_Products';
 import { useUser } from '../../context/UserContext';
 import { useCart } from '../../context/CartContext';
 import { apiFetch } from '../../lib/api';
+import StarRating from '../../components/StarRating';
 import ProductGallery from './ProductGallery';
 
 const taka = new Intl.NumberFormat('en-BD', {
@@ -25,20 +27,81 @@ export default function ProductDetailsClient({ product }) {
   const discountLabel =
     product.badge_text || product.discount_label || (product.save_percent ? `${product.save_percent}% OFF` : '');
   const [reviews, setReviews] = useState([]);
+  const [reviewsLoaded, setReviewsLoaded] = useState(false);
   const [reviewForm, setReviewForm] = useState({ rating: 5, title: '', comment: '' });
   const [reviewMessage, setReviewMessage] = useState('');
+  const [shareUrl, setShareUrl] = useState('');
+  const [shareMessage, setShareMessage] = useState('');
 
   const loadReviews = useCallback(async () => {
     try {
       setReviews(await apiFetch(`/products/${product.id}/reviews`));
     } catch (error) {
       setReviews([]);
+    } finally {
+      setReviewsLoaded(true);
     }
   }, [product.id]);
 
   useEffect(() => {
     loadReviews();
   }, [loadReviews]);
+
+  useEffect(() => {
+    setShareUrl(window.location.href);
+  }, []);
+
+  const reviewSummary = useMemo(() => {
+    const totalReviews = reviewsLoaded ? reviews.length : Number(product.review_count || 0);
+    const averageRating = reviewsLoaded && reviews.length
+      ? reviews.reduce((sum, review) => sum + Number(review.rating || 0), 0) / reviews.length
+      : Number(product.avg_rating || 0);
+
+    return {
+      totalReviews,
+      averageRating: totalReviews ? averageRating : 0
+    };
+  }, [product.avg_rating, product.review_count, reviews, reviewsLoaded]);
+
+  const shareLinks = useMemo(() => {
+    const url = encodeURIComponent(shareUrl || '');
+    const title = encodeURIComponent(product.name || 'Product');
+    const text = encodeURIComponent(`Check out ${product.name}`);
+
+    return [
+      { label: 'Facebook', href: `https://www.facebook.com/sharer/sharer.php?u=${url}` },
+      { label: 'WhatsApp', href: `https://wa.me/?text=${text}%20${url}` },
+      { label: 'Messenger', href: `https://www.facebook.com/sharer/sharer.php?u=${url}` },
+      { label: 'Telegram', href: `https://t.me/share/url?url=${url}&text=${text}` },
+      { label: 'X (Twitter)', href: `https://twitter.com/intent/tweet?url=${url}&text=${text}` },
+      { label: 'LinkedIn', href: `https://www.linkedin.com/sharing/share-offsite/?url=${url}` },
+      { label: 'Pinterest', href: `https://pinterest.com/pin/create/button/?url=${url}&description=${title}` },
+      { label: 'Email', href: `mailto:?subject=${title}&body=${text}%0A${url}` }
+    ];
+  }, [product.name, shareUrl]);
+
+  const copyShareLink = async () => {
+    if (!shareUrl) return;
+
+    try {
+      if (navigator.clipboard?.writeText) {
+        await navigator.clipboard.writeText(shareUrl);
+      } else {
+        const input = document.createElement('textarea');
+        input.value = shareUrl;
+        input.setAttribute('readonly', '');
+        input.style.position = 'fixed';
+        input.style.opacity = '0';
+        document.body.appendChild(input);
+        input.select();
+        document.execCommand('copy');
+        document.body.removeChild(input);
+      }
+      setShareMessage('Link copied.');
+    } catch {
+      setShareMessage('Copy failed. Please copy the browser URL.');
+    }
+  };
 
   const handleBuyNow = () => {
     setCheckoutItems([{ ...product, stock_quantity: Number(product.quantity || 0), quantity: 1 }]);
@@ -57,7 +120,7 @@ export default function ProductDetailsClient({ product }) {
     setReviewMessage('');
 
     if (!user) {
-      router.push(`/login_signup/login?redirect=/singleproduct/${product.id}`);
+      router.push(`/login_signup/login?redirect=/product/${product.slug || product.id}`);
       return;
     }
 
@@ -80,9 +143,9 @@ export default function ProductDetailsClient({ product }) {
   };
 
   return (
-    <main className="min-h-screen bg-slate-50 px-3 py-6 text-slate-950 sm:px-5">
-      <div className="mx-auto max-w-7xl">
-        <section className="grid gap-6 rounded-lg bg-white p-4 shadow-sm lg:grid-cols-[420px_1fr] lg:p-6">
+    <main className="min-h-screen bg-slate-50 px-1.5 pb-24 pt-3 text-slate-950 sm:px-2 lg:pb-6">
+      <div className="mx-auto max-w-[1260px]">
+        <section className="grid gap-3 rounded-md bg-white p-2 shadow-sm md:grid-cols-[minmax(430px,48%)_1fr] lg:gap-5 lg:p-3 xl:grid-cols-[minmax(500px,48%)_1fr]">
           <ProductGallery product={product} />
 
           <div className="flex flex-col">
@@ -91,6 +154,18 @@ export default function ProductDetailsClient({ product }) {
             </p>
             <h1 className="mt-2 text-2xl font-black leading-tight sm:text-4xl">{product.name}</h1>
             <p className="mt-3 text-sm text-slate-500">SKU: {product.sku || `TTBD-${product.id}`}</p>
+            {product.brand_name && (
+              <p className="mt-2 text-sm font-semibold text-slate-600">
+                Brand:{' '}
+                {product.brand_slug ? (
+                  <Link href={`/brand/${product.brand_slug}`} className="text-rose-600 hover:text-rose-700">
+                    {product.brand_name}
+                  </Link>
+                ) : (
+                  product.brand_name
+                )}
+              </p>
+            )}
             <div className="mt-5">
               {hasOffer && (
                 <div className="mb-2 flex flex-wrap items-center gap-2">
@@ -111,15 +186,14 @@ export default function ProductDetailsClient({ product }) {
                 )}
               </div>
             </div>
-            <p className="mt-2 text-sm font-semibold text-slate-500">
-              {Number(product.sold_count || 0)} sold
-              {Number(product.review_count || 0) > 0 ? ` | ${Number(product.avg_rating || 0).toFixed(1)} stars from ${product.review_count} reviews` : ''}
-            </p>
-
-            <div className="mt-5 grid gap-3 text-sm text-slate-600 sm:grid-cols-3">
+            <div className="mt-5 grid gap-3 text-sm text-slate-600 sm:grid-cols-2 lg:grid-cols-4">
               <div className="rounded-lg border border-slate-200 p-3">
                 <p className="font-bold text-slate-950">Stock</p>
                 <p>{inStock ? `${product.quantity} available` : 'Sold out'}</p>
+              </div>
+              <div className="rounded-lg border border-slate-200 p-3">
+                <p className="font-bold text-slate-950">Sold</p>
+                <p>{Number(product.sold_count || 0)} sold</p>
               </div>
               <div className="rounded-lg border border-slate-200 p-3">
                 <p className="font-bold text-slate-950">Delivery</p>
@@ -131,7 +205,34 @@ export default function ProductDetailsClient({ product }) {
               </div>
             </div>
 
-            <div className="mt-6 flex flex-col gap-3 sm:flex-row">
+            <div className="mt-5 rounded-lg border border-slate-200 p-4">
+              <p className="text-sm font-bold uppercase tracking-wide text-slate-500">Reviews Summary</p>
+              {reviewSummary.totalReviews > 0 ? (
+                <a href="#reviews" className="mt-3 grid gap-3 rounded-md text-sm outline-none transition hover:bg-slate-50 focus:ring-2 focus:ring-slate-950 sm:grid-cols-3">
+                  <div>
+                    <p className="font-bold text-slate-950">Average Rating</p>
+                    <p className="mt-1 text-slate-600">{reviewSummary.averageRating.toFixed(1)} / 5</p>
+                  </div>
+                  <div>
+                    <p className="font-bold text-slate-950">Total Reviews</p>
+                    <p className="mt-1 text-slate-600">{reviewSummary.totalReviews}</p>
+                  </div>
+                  <div>
+                    <p className="font-bold text-slate-950">Star Rating</p>
+                    <div className="mt-1 flex items-center gap-2">
+                      <StarRating rating={reviewSummary.averageRating} size="text-base" />
+                      <span className="text-slate-600">{reviewSummary.averageRating.toFixed(1)}</span>
+                    </div>
+                  </div>
+                </a>
+              ) : (
+                <a href="#reviews" className="mt-3 block rounded-md text-sm font-semibold text-slate-500 outline-none transition hover:bg-slate-50 focus:ring-2 focus:ring-slate-950">
+                  No Reviews Yet
+                </a>
+              )}
+            </div>
+
+            <div className="fixed bottom-0 left-0 right-0 z-40 grid grid-cols-2 gap-2 border-t border-slate-200 bg-white/95 p-3 shadow-2xl backdrop-blur sm:static sm:mt-6 sm:flex sm:border-0 sm:bg-transparent sm:p-0 sm:shadow-none">
               <button
                 type="button"
                 disabled={!inStock}
@@ -144,10 +245,35 @@ export default function ProductDetailsClient({ product }) {
                 type="button"
                 disabled={!inStock}
                 onClick={handleBuyNow}
-                className="rounded-md bg-slate-950 px-5 py-3 font-bold text-white transition hover:bg-rose-600 disabled:cursor-not-allowed disabled:opacity-50"
+                className="rounded-md bg-rose-600 px-5 py-3 font-bold text-white transition hover:bg-slate-950 disabled:cursor-not-allowed disabled:opacity-50"
               >
                 Buy Now
               </button>
+            </div>
+
+            <div className="mt-5">
+              <p className="text-sm font-bold uppercase tracking-wide text-slate-500">Share</p>
+              <div className="mt-3 grid grid-cols-2 gap-2 sm:flex sm:flex-wrap">
+                {shareLinks.map((item) => (
+                  <a
+                    key={item.label}
+                    href={item.href}
+                    target={item.href.startsWith('mailto:') ? undefined : '_blank'}
+                    rel={item.href.startsWith('mailto:') ? undefined : 'noopener noreferrer'}
+                    className="rounded-md border border-slate-300 px-3 py-2 text-center text-sm font-semibold text-slate-700 hover:border-slate-950 hover:text-slate-950"
+                  >
+                    {item.label}
+                  </a>
+                ))}
+                <button
+                  type="button"
+                  onClick={copyShareLink}
+                  className="rounded-md bg-slate-950 px-3 py-2 text-sm font-semibold text-white hover:bg-rose-600"
+                >
+                  Copy Link
+                </button>
+              </div>
+              {shareMessage && <p className="mt-2 text-sm font-semibold text-emerald-600">{shareMessage}</p>}
             </div>
 
           </div>
@@ -161,25 +287,37 @@ export default function ProductDetailsClient({ product }) {
             </div>
             <div className="space-y-4">
               <p className="leading-7 text-slate-600">{product.description || 'No description added yet.'}</p>
-              <div className="grid gap-3 text-sm sm:grid-cols-3">
+              <div className="grid gap-3 text-sm sm:grid-cols-2 lg:grid-cols-4">
                 <div className="rounded-md bg-slate-50 p-3">
                   <p className="font-bold text-slate-950">Category</p>
                   <p className="mt-1 text-slate-600">{product.category_name || 'Uncategorized'}</p>
                 </div>
                 <div className="rounded-md bg-slate-50 p-3">
-                  <p className="font-bold text-slate-950">SKU</p>
-                  <p className="mt-1 text-slate-600">{product.sku || `TTBD-${product.id}`}</p>
+                  <p className="font-bold text-slate-950">Brand</p>
+                  <p className="mt-1 text-slate-600">
+                    {product.brand_name ? (
+                      product.brand_slug ? (
+                        <Link href={`/brand/${product.brand_slug}`} className="font-semibold text-rose-600 hover:text-rose-700">
+                          {product.brand_name}
+                        </Link>
+                      ) : product.brand_name
+                    ) : 'No brand'}
+                  </p>
                 </div>
                 <div className="rounded-md bg-slate-50 p-3">
                   <p className="font-bold text-slate-950">Availability</p>
                   <p className="mt-1 text-slate-600">{inStock ? 'In stock' : 'Sold out'}</p>
+                </div>
+                <div className="rounded-md bg-slate-50 p-3">
+                  <p className="font-bold text-slate-950">Country of Origin</p>
+                  <p className="mt-1 text-slate-600">{product.country_of_origin || 'Not specified'}</p>
                 </div>
               </div>
             </div>
           </div>
         </section>
 
-        <section className="mt-5 grid gap-5 rounded-lg bg-white p-4 shadow-sm lg:grid-cols-[1fr_360px] lg:p-6">
+        <section id="reviews" className="mt-5 scroll-mt-28 grid gap-5 rounded-lg bg-white p-4 shadow-sm lg:grid-cols-[1fr_360px] lg:p-6">
           <div>
             <h2 className="text-xl font-black">Reviews</h2>
             {reviews.length === 0 ? (
@@ -192,7 +330,7 @@ export default function ProductDetailsClient({ product }) {
                   <article key={review.id} className="rounded-md border border-slate-200 p-3">
                     <div className="flex flex-wrap items-center justify-between gap-2">
                       <p className="font-bold">{review.reviewer_name || 'Customer'}</p>
-                      <p className="text-sm font-black text-amber-600">{review.rating} stars</p>
+                      <StarRating rating={review.rating} size="text-sm" showValue />
                     </div>
                     {review.title && <p className="mt-2 text-sm font-bold text-slate-700">{review.title}</p>}
                     <p className="mt-1 text-sm leading-6 text-slate-600">{review.comment}</p>

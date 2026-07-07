@@ -1,0 +1,500 @@
+General Instruction (Apply to Every Task):
+
+Before making any changes, analyze the existing project, database schema, routing, and architecture. Follow the existing coding style, naming conventions, folder structure, and UI design. Do not break existing functionality. Generate SQL migrations when needed. Store all uploaded images in MinIO. Keep code clean, modular, secure, and production-ready. Test the feature before considering it complete.
+
+
+
+
+1. Brand Module
+Add Brand Image upload in Admin.
+Store Brand Image in MinIO.
+Show image preview in Admin.
+Allow image update/delete.
+Add Brand Description.
+Add Brand Status (Active/Inactive).
+Add SEO Title.
+Add SEO Description.
+Add SEO Keywords.
+Auto-generate unique slug.
+Update database.
+Generate SQL migration.
+2. Brand Navigation
+Add "Brands" menu in Navbar.
+Show dropdown of all active brands.
+Clicking a brand opens /brand/{brand-slug}.
+Display Brand Image.
+Display Brand Name.
+Display Brand Description.
+Display all products of that brand.
+Add pagination.
+Add sorting.
+Add SEO metadata.
+3. Product Brand
+Add Brand selection while creating/editing products.
+Save brand_id.
+Display Brand on Product page.
+Brand name should link to Brand page.
+Generate SQL migration.
+
+
++++++++++++++++++++++++++done____________________________________
+
+4. Country of Origin
+Add Country of Origin field.
+Admin dropdown selection.
+Display Country of Origin on Product page.
+Generate SQL migration.
+
++++++++++++++++++++++++++done____________________________________
+
+
+5. Site Settings
+
+Create Site Settings module.
+
+Manage:
+
+Website Name
+Website Logo
+Footer Logo
+Favicon
+Website Description
+Contact Email
+Phone
+WhatsApp
+Office Address
+Google Map
+Support Email
+Footer Copyright
+Meta Title
+Meta Description
+Meta Keywords
+Google Analytics
+Google Tag Manager
+Facebook Pixel
+
+Everything should load dynamically from Admin.
+
+
+
+6. Social Media Settings
+
+Manage from Admin:
+
+Facebook
+Instagram
+WhatsApp
+Telegram
+YouTube
+LinkedIn
+Pinterest
+X (Twitter)
+TikTok
+
+Features:
+
+Enable/Disable
+Change URL
+Change Display Order
+
+Footer should use these settings dynamically.
+
+
+7. CMS / Policy Pages
+
+Create CMS module.
+
+Pages:
+
+About Us
+Contact Us
+Privacy Policy
+Terms & Conditions
+Shipping Policy
+Return & Refund Policy
+Warranty Policy
+Cancellation Policy
+
+Features:
+
+Rich Text Editor
+Featured Image
+SEO Fields
+Slug
+Status
+
+Show pages automatically in Footer.
+
+8. Dynamic Footer
+
+Footer should display dynamically:
+
+Website Logo
+Website Description
+Contact Information
+Email
+Phone
+WhatsApp
+Address
+Categories
+Brands
+Policy Pages
+Quick Links
+Newsletter
+Social Icons
+Copyright
+
+Nothing should be hardcoded.
+
+
+9. Product Tags
+Add Tags in Product Admin.
+Support multiple tags.
+Show tags on Product page.
+Clicking tag opens /tag/{tag-name}.
+Display all related products.
+Generate SQL migration.
+
+
+
+10. Product Reviews Summary
+
+Display before Buy Now:
+
+Average Rating
+Total Reviews
+Star Rating
+
+If no reviews:
+
+Show "No Reviews Yet"
+
+Everything should be dynamic.
+
+
+12. Product Share Buttons
+
+Add after Buy Now:
+
+Facebook
+WhatsApp
+Messenger
+Telegram
+X (Twitter)
+LinkedIn
+Pinterest
+Email
+Copy Link
+
+Must work on desktop and mobile.
+
+13. SEO-Friendly URLs
+
+Replace ID URLs with slug URLs.
+
+Example:
+
+/singleproduct/1
+→ /product/apple-iphone-16-pro-max
+
+Also update:
+
+Categories
+Brands
+Tags
+CMS Pages
+
+Requirements:
+
+Auto-generate unique slug.
+301 redirect old URLs.
+Update routing.
+Preserve existing links.
+
+
+
+
+14. Product SEO
+
+Add:
+
+SEO Title
+SEO Description
+SEO Keywords
+Canonical URL
+Open Graph
+Twitter Card
+
+Auto-generate if empty.
+
+
+15. Category SEO
+
+Add:
+
+SEO Title
+SEO Description
+SEO Keywords
+Slug
+Canonical URL
+Open Graph
+16. Brand SEO
+
+Add:
+
+SEO Title
+SEO Description
+SEO Keywords
+Canonical URL
+Open Graph
+17. CMS SEO
+
+Each CMS page should support:
+
+SEO Title
+SEO Description
+SEO Keywords
+Canonical URL
+Open Graph
+Twitter Card
+18. Dynamic Meta Tags
+
+Generate dynamically:
+
+HTML Title
+Meta Description
+Meta Keywords
+Canonical
+Open Graph
+Twitter Card
+
+No hardcoded metadata.
+
+
+
+19. XML Sitemap
+
+Automatically generate sitemap for:
+
+Homepage
+Products
+Categories
+Brands
+Tags
+CMS Pages
+
+Auto-update when content changes.
+
+
+
+20. Robots.txt
+
+Generate proper robots.txt.
+Allow future configuration from Admin.
+
+21. Breadcrumb Navigation
+
+Add breadcrumb navigation to:
+
+Product
+Category
+Brand
+CMS Pages
+
+Include Breadcrumb Schema.
+
+22. Structured Data
+
+Implement JSON-LD for:
+
+Organization
+Website
+Product
+Brand
+Review
+Aggregate Rating
+Breadcrumb
+FAQ
+23. Image SEO
+
+Every uploaded image should support:
+
+ALT Text
+Image Title
+Caption
+Lazy Loading
+Width & Height
+
+Auto-generate ALT if missing.
+
+24. Search Improvements
+
+Improve search with:
+
+Autocomplete
+Brand Search
+Category Search
+Tag Search
+Suggestions
+Typo Tolerance
+25. Product Page Improvements
+
+Add:
+
+Image Gallery
+Zoom
+Multiple Images
+Product Video
+Specifications Table
+Related Products
+Same Brand Products
+Recently Viewed
+Frequently Bought Together
+Delivery Information
+Warranty Information
+Return Policy
+Estimated Delivery
+Stock Status
+Low Stock Warning
+26. Performance Optimization
+
+Improve:
+
+Lazy Loading
+CSS Minification
+JavaScript Minification
+Image Compression
+Browser Caching
+SQL Optimization
+API Optimization
+Code Splitting
+Responsive Images
+27. Admin Dashboard Improvements
+
+Improve Admin:
+
+Dashboard Statistics
+Sales Summary
+Better Product Management
+Better Brand Management
+Better SEO Management
+Better Settings Management
+Better CMS Management
+28. Wishlist
+
+Implement:
+
+Wishlist Button
+Guest Wishlist
+Logged-in Wishlist
+Wishlist Page
+Add/Remove Wishlist
+29. Compare Products
+
+Implement:
+
+Compare Button
+Compare Page
+Maximum 4 Products
+Remove Product
+30. Coupon & Discount System
+
+Create:
+
+Percentage Coupon
+Fixed Amount Coupon
+Expiry Date
+Usage Limit
+Minimum Order
+Admin CRUD
+31. Flash Sale
+
+Create:
+
+Flash Sale Module
+Countdown Timer
+Schedule
+Discount
+Admin CRUD
+32. Inventory Improvements
+
+Add:
+
+Low Stock Warning
+Out of Stock Badge
+Stock Alerts
+Back in Stock Notification
+33. Customer Features
+
+Add:
+
+Order Tracking
+Invoice Download
+Order History
+Customer Dashboard
+Newsletter Subscription
+Email Notifications
+WhatsApp/SMS Notifications (if supported)
+34. Security Improvements
+
+Improve:
+
+Authentication
+Authorization
+Input Validation
+File Upload Validation
+SQL Injection Protection
+XSS Protection
+CSRF Protection
+Rate Limiting
+Logging
+Exception Handling
+35. Responsive Design
+
+Ensure the entire website works perfectly on:
+
+Desktop
+Laptop
+Tablet
+Mobile
+36. Accessibility
+
+Improve:
+
+Semantic HTML
+Proper Heading Structure
+ARIA Labels
+Keyboard Navigation
+Accessible Forms
+Color Contrast
+37. MinIO Integration
+
+Ensure all uploads use MinIO:
+
+Product Images
+Variant Images
+Brand Images
+Website Logo
+Favicon
+CMS Images
+SEO Images
+Future Uploads
+38. Final Project Audit
+
+After completing all tasks:
+
+Analyze the entire project.
+Find bugs.
+Fix performance issues.
+Fix SEO issues.
+Fix security issues.
+Improve accessibility.
+Remove duplicate code.
+Ensure consistent UI/UX.
+Verify all new features work correctly.
+Do not leave unfinished or placeholder code.
+Ensure the application is production-ready.
+
+
+
+

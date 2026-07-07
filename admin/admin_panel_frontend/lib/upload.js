@@ -49,3 +49,19 @@ export const uploadProductImage = async (file, productName = '') => {
   const files = await uploadProductImages([file], productName)
   return files[0] || ''
 }
+
+export const uploadBrandImage = async (file, brandName = '') => {
+  const files = await uploadImages([file], {
+    type: 'brand-logo',
+    folder: brandName || 'brand'
+  })
+  return files[0] || ''
+}
+
+export const uploadSiteAsset = async (file, folder = 'site') => {
+  const files = await uploadImages([file], {
+    type: 'website-logo',
+    folder
+  })
+  return files[0] || ''
+}

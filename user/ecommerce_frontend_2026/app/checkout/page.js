@@ -6,6 +6,7 @@ import { useRouter } from 'next/navigation';
 import { useUser } from '../context/UserContext';
 import { useCart } from '../context/CartContext';
 import { apiFetch } from '../lib/api';
+import { defaultSiteSettings } from '../lib/siteSettings';
 import ProductImage from '../components/ProductImage';
 
 const taka = new Intl.NumberFormat('en-BD', {
@@ -21,10 +22,13 @@ export default function CheckoutPage() {
   const [products, setProducts] = useState([]);
   const [paymentMethod, setPaymentMethod] = useState('Cash On Delivery');
   const [form, setForm] = useState({ full_name: '', phone_number: '', email: '', address: '', city: '', area: '', notes: '' });
+  const [deliveryZone, setDeliveryZone] = useState('');
+  const [settings, setSettings] = useState(defaultSiteSettings);
   const [addresses, setAddresses] = useState([]);
   const [selectedAddressId, setSelectedAddressId] = useState('');
   const [submitting, setSubmitting] = useState(false);
   const [error, setError] = useState('');
+  const [successOrderId, setSuccessOrderId] = useState('');
 
   useEffect(() => {
     // Old flow kept for reference. Checkout now supports guest orders.
@@ -71,10 +75,22 @@ export default function CheckoutPage() {
       .catch(() => setAddresses([]));
   }, [user, router, getCheckoutItems]);
 
-  const total = useMemo(
+  useEffect(() => {
+    apiFetch('/site-settings')
+      .then((data) => setSettings({ ...defaultSiteSettings, ...data }))
+      .catch(() => setSettings(defaultSiteSettings));
+  }, []);
+
+  const subtotal = useMemo(
     () => products.reduce((sum, product) => sum + Number(product.price || 0) * Number(product.quantity || 0), 0),
     [products]
   );
+  const deliveryCharge = deliveryZone === 'Inside Dhaka'
+    ? Number(settings.inside_dhaka_delivery_charge || 80)
+    : deliveryZone === 'Outside Dhaka'
+      ? Number(settings.outside_dhaka_delivery_charge || 120)
+      : 0;
+  const total = subtotal + deliveryCharge;
 
   const handleChange = (event) => {
     setForm((current) => ({ ...current, [event.target.name]: event.target.value }));
@@ -101,14 +117,15 @@ export default function CheckoutPage() {
   const handleSubmit = async (event) => {
     event.preventDefault();
     setError('');
+    setSuccessOrderId('');
 
     if (!products.length) {
       setError('No checkout items found.');
       return;
     }
 
-    if (!form.phone_number || !form.address || !form.city) {
-      setError('Phone, address and city are required.');
+    if (!form.full_name || !form.phone_number || !form.address || !form.city || !deliveryZone) {
+      setError('Name, phone, address, city and delivery area are required.');
       return;
     }
 
@@ -146,6 +163,7 @@ export default function CheckoutPage() {
           delivery_address: form.address,
           delivery_city: form.city,
           delivery_area: form.area,
+          delivery_zone: deliveryZone,
           order_notes: form.notes,
           products: products.map((product) => ({
             id: product.id,
@@ -156,8 +174,7 @@ export default function CheckoutPage() {
 
       clearCartItems(products.map((product) => product.id));
       sessionStorage.removeItem('checkoutItems');
-      alert(`Order placed successfully. Order ID: ${order.orderId}`);
-      router.push(user ? '/user_profile' : '/cart');
+      setSuccessOrderId(order.orderId);
     } catch (checkoutError) {
       setError(checkoutError.message || 'Checkout failed.');
     } finally {
@@ -211,7 +228,7 @@ export default function CheckoutPage() {
 
           <div className="mt-5 grid gap-4 sm:grid-cols-2">
             <label className="text-sm font-semibold text-slate-700">
-              Full name
+              Full name <span className="text-rose-600">*</span>
               <input
                 name="full_name"
                 value={form.full_name}
@@ -220,7 +237,7 @@ export default function CheckoutPage() {
               />
             </label>
             <label className="text-sm font-semibold text-slate-700">
-              Phone number
+              Phone number <span className="text-rose-600">*</span>
               <input
                 name="phone_number"
                 value={form.phone_number}
@@ -230,7 +247,7 @@ export default function CheckoutPage() {
               />
             </label>
             <label className="text-sm font-semibold text-slate-700 sm:col-span-2">
-              Delivery address
+              Delivery address <span className="text-rose-600">*</span>
               <textarea
                 name="address"
                 value={form.address}
@@ -250,7 +267,7 @@ export default function CheckoutPage() {
               />
             </label>
             <label className="text-sm font-semibold text-slate-700">
-              City
+              City <span className="text-rose-600">*</span>
               <input
                 name="city"
                 value={form.city}
@@ -267,6 +284,19 @@ export default function CheckoutPage() {
                 onChange={handleChange}
                 className="mt-1 w-full rounded-md border border-slate-300 px-3 py-2 text-slate-950 outline-none focus:border-slate-950"
               />
+            </label>
+            <label className="text-sm font-semibold text-slate-700">
+              Delivery area <span className="text-rose-600">*</span>
+              <select
+                value={deliveryZone}
+                onChange={(event) => setDeliveryZone(event.target.value)}
+                className="mt-1 w-full rounded-md border border-slate-300 bg-white px-3 py-2 text-slate-950 outline-none focus:border-slate-950"
+                required
+              >
+                <option value="">Select delivery area</option>
+                <option value="Inside Dhaka">Inside Dhaka - {taka.format(Number(settings.inside_dhaka_delivery_charge || 80))}</option>
+                <option value="Outside Dhaka">Outside Dhaka - {taka.format(Number(settings.outside_dhaka_delivery_charge || 120))}</option>
+              </select>
             </label>
             <label className="text-sm font-semibold text-slate-700">
               Payment
@@ -317,6 +347,14 @@ export default function CheckoutPage() {
             ))}
           </div>
           <div className="mt-5 flex justify-between border-t border-slate-200 pt-4 text-lg font-black">
+            <span>Subtotal</span>
+            <span>{taka.format(subtotal)}</span>
+          </div>
+          <div className="mt-2 flex justify-between text-sm font-bold text-slate-600">
+            <span>Delivery Charge</span>
+            <span>{deliveryZone ? taka.format(deliveryCharge) : 'Select area'}</span>
+          </div>
+          <div className="mt-3 flex justify-between border-t border-slate-200 pt-4 text-lg font-black">
             <span>Total</span>
             <span>{taka.format(total)}</span>
           </div>
@@ -329,6 +367,35 @@ export default function CheckoutPage() {
           </button>
         </aside>
       </form>
+
+      {successOrderId && (
+        <div className="fixed inset-0 z-[90] flex items-end justify-center bg-slate-950/60 px-3 py-4 backdrop-blur-sm sm:items-center">
+          <div className="w-full max-w-md rounded-lg bg-white p-6 text-center shadow-2xl">
+            <div className="mx-auto flex h-14 w-14 items-center justify-center rounded-full bg-emerald-600 text-2xl font-black text-white">
+              ✓
+            </div>
+            <p className="mt-4 text-sm font-bold uppercase tracking-wide text-emerald-600">Order placed</p>
+            <h2 className="mt-2 text-2xl font-black text-slate-950">Thank you for your order.</h2>
+            <p className="mt-2 text-slate-600">Your order ID is #{successOrderId}. We will contact you soon.</p>
+            <div className="mt-6 grid gap-2 sm:grid-cols-2">
+              <button
+                type="button"
+                onClick={() => router.push(user ? '/user_profile' : '/cart')}
+                className="rounded-md bg-slate-950 px-4 py-3 font-bold text-white transition hover:bg-rose-600"
+              >
+                {user ? 'View Orders' : 'Go to Cart'}
+              </button>
+              <button
+                type="button"
+                onClick={() => router.push('/')}
+                className="rounded-md border border-slate-300 px-4 py-3 font-bold text-slate-800 transition hover:border-slate-950"
+              >
+                Continue Shopping
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
     </main>
   );
 }

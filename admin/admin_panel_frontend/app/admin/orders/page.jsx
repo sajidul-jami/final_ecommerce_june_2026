@@ -150,6 +150,7 @@ export default function OrdersPage() {
                 <th className="px-5 py-3 font-semibold">Order</th>
                 <th className="px-5 py-3 font-semibold">Customer</th>
                 <th className="px-5 py-3 font-semibold">Payment</th>
+                <th className="px-5 py-3 font-semibold">Delivery</th>
                 <th className="px-5 py-3 font-semibold">Amount</th>
                 <th className="px-5 py-3 font-semibold">Created</th>
                 <th className="px-5 py-3 font-semibold">Status</th>
@@ -159,13 +160,17 @@ export default function OrdersPage() {
             <tbody className="divide-y divide-slate-100">
               {loading ? (
                 <tr>
-                  <td colSpan="7" className="px-5 py-10 text-center text-slate-500">Loading orders...</td>
+                  <td colSpan="8" className="px-5 py-10 text-center text-slate-500">Loading orders...</td>
                 </tr>
               ) : filteredOrders.length ? filteredOrders.map((order) => (
                 <tr key={order.id} className="text-slate-700">
                   <td className="px-5 py-4 font-semibold text-slate-950">#{order.id}</td>
                   <td className="px-5 py-4">{order.full_name || 'Guest customer'}</td>
                   <td className="px-5 py-4">{order.payment_method}</td>
+                  <td className="px-5 py-4">
+                    <p>{order.delivery_zone || '-'}</p>
+                    {Number(order.delivery_charge || 0) > 0 && <p className="text-xs text-slate-500">{money(order.delivery_charge)}</p>}
+                  </td>
                   <td className="px-5 py-4 font-semibold">{money(order.total_amount)}</td>
                   <td className="px-5 py-4">{order.created_at ? new Date(order.created_at).toLocaleDateString() : 'N/A'}</td>
                   <td className="px-5 py-4">
@@ -192,7 +197,7 @@ export default function OrdersPage() {
                 </tr>
               )) : (
                 <tr>
-                  <td colSpan="7" className="px-5 py-10 text-center text-slate-500">No orders found.</td>
+                  <td colSpan="8" className="px-5 py-10 text-center text-slate-500">No orders found.</td>
                 </tr>
               )}
             </tbody>

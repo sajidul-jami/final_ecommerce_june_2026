@@ -26,13 +26,13 @@ export default async function sitemap() {
       priority: 1,
     },
     ...categories.map((category) => ({
-      url: `${SITE_URL}/?category=${encodeURIComponent(category.cat_code || category.cat_slug || category.id)}`,
+      url: `${SITE_URL}/category/${encodeURIComponent(category.cat_slug || category.cat_code || category.id)}`,
       lastModified: category.created_at ? new Date(category.created_at) : new Date(),
       changeFrequency: 'weekly',
       priority: 0.8,
     })),
     ...products.map((product) => ({
-      url: `${SITE_URL}/singleproduct/${product.id}`,
+      url: `${SITE_URL}/product/${product.slug || product.id}`,
       lastModified: product.created_at ? new Date(product.created_at) : new Date(),
       changeFrequency: 'weekly',
       priority: 0.7,

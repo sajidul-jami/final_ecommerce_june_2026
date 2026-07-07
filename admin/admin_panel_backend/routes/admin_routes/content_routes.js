@@ -12,6 +12,35 @@ const missingColumn = (error) =>
 
 const toMysqlDateTime = (value) => value ? String(value).replace('T', ' ') : null
 
+const slugify = (value = '') =>
+    String(value)
+        .toLowerCase()
+        .trim()
+        .replace(/[^a-z0-9]+/g, '-')
+        .replace(/(^-|-$)/g, '') || 'brand'
+
+const uniqueBrandSlug = async (name, requestedSlug = '', excludeId = null) => {
+    const baseSlug = slugify(requestedSlug || name)
+    let slug = baseSlug
+    let suffix = 2
+
+    while (true) {
+        const params = [slug]
+        let excludeSql = ''
+
+        if (excludeId) {
+            excludeSql = ' AND id <> ?'
+            params.push(excludeId)
+        }
+
+        const [rows] = await pool.query(`SELECT id FROM brands WHERE slug = ?${excludeSql} LIMIT 1`, params)
+        if (!rows.length) return slug
+
+        slug = `${baseSlug}-${suffix}`
+        suffix += 1
+    }
+}
+
 const offerSelect = `
     SELECT o.*, p.name AS product_name, p.photo, p.price,
            CASE
@@ -22,6 +51,32 @@ const offerSelect = `
     FROM offers o
     LEFT JOIN products p ON p.id = o.product_id
 `
+
+const siteSettingsFields = [
+    'website_name',
+    'website_logo',
+    'footer_logo',
+    'favicon',
+    'website_description',
+    'footer_title',
+    'footer_description',
+    'footer_quick_links',
+    'contact_email',
+    'phone',
+    'whatsapp',
+    'office_address',
+    'google_map',
+    'support_email',
+    'footer_copyright',
+    'meta_title',
+    'meta_description',
+    'meta_keywords',
+    'google_analytics',
+    'google_tag_manager',
+    'facebook_pixel',
+    'inside_dhaka_delivery_charge',
+    'outside_dhaka_delivery_charge'
+]
 
 const ensureProductsNotInActiveOffer = async (productIds, excludeOfferId = null) => {
     const ids = [...new Set((productIds || []).map(Number).filter(Boolean))]
@@ -202,22 +257,47 @@ router.get('/brands', optionalList(async () => {
 }))
 
 router.post('/brands', optionalWrite(async (req) => {
-    const { name, slug, logo, status } = req.body
-    const safeSlug = slug || String(name || '').toLowerCase().trim().replace(/[^a-z0-9]+/g, '-').replace(/(^-|-$)/g, '')
+    const { name, slug, logo, description, status, seo_title, seo_description, seo_keywords } = req.body
+    const safeSlug = await uniqueBrandSlug(name, slug)
     const [result] = await pool.query(
-        'INSERT INTO brands (name, slug, logo, status) VALUES (?, ?, ?, ?)',
-        [name, safeSlug, logo || '', status || 'Active']
+        `INSERT INTO brands
+         (name, slug, logo, description, status, seo_title, seo_description, seo_keywords)
+         VALUES (?, ?, ?, ?, ?, ?, ?, ?)`,
+        [
+            name,
+            safeSlug,
+            logo || '',
+            description || '',
+            status || 'Active',
+            seo_title || '',
+            seo_description || '',
+            seo_keywords || ''
+        ]
     )
-    return { id: result.insertId, message: 'Brand saved' }
+    return { id: result.insertId, slug: safeSlug, message: 'Brand saved' }
 }))
 
 router.put('/brands/:id', optionalWrite(async (req) => {
-    const { name, slug, logo, status } = req.body
+    const { name, slug, logo, description, status, seo_title, seo_description, seo_keywords } = req.body
+    const safeSlug = await uniqueBrandSlug(name, slug, req.params.id)
     await pool.query(
-        'UPDATE brands SET name = ?, slug = ?, logo = ?, status = ? WHERE id = ?',
-        [name, slug || '', logo || '', status || 'Active', req.params.id]
+        `UPDATE brands
+         SET name = ?, slug = ?, logo = ?, description = ?, status = ?,
+             seo_title = ?, seo_description = ?, seo_keywords = ?
+         WHERE id = ?`,
+        [
+            name,
+            safeSlug,
+            logo || '',
+            description || '',
+            status || 'Active',
+            seo_title || '',
+            seo_description || '',
+            seo_keywords || '',
+            req.params.id
+        ]
     )
-    return { message: 'Brand updated' }
+    return { slug: safeSlug, message: 'Brand updated' }
 }))
 
 router.delete('/brands/:id', optionalWrite(async (req) => {
@@ -348,6 +428,25 @@ router.put('/social-links/:id', optionalWrite(async (req) => {
 router.delete('/social-links/:id', optionalWrite(async (req) => {
     await pool.query('DELETE FROM social_links WHERE id = ?', [req.params.id])
     return { message: 'Social link deleted' }
+}))
+
+router.get('/site-settings', optionalList(async () => {
+    const [rows] = await pool.query('SELECT * FROM site_settings WHERE id = 1 LIMIT 1')
+    return rows[0] || {}
+}))
+
+router.put('/site-settings', optionalWrite(async (req) => {
+    const values = siteSettingsFields.map((field) => req.body[field] || '')
+    const updateSql = siteSettingsFields.map((field) => `${field} = VALUES(${field})`).join(', ')
+
+    await pool.query(
+        `INSERT INTO site_settings (id, ${siteSettingsFields.join(', ')})
+         VALUES (1, ${siteSettingsFields.map(() => '?').join(', ')})
+         ON DUPLICATE KEY UPDATE ${updateSql}`,
+        values
+    )
+
+    return { message: 'Site settings saved' }
 }))
 
 module.exports = router

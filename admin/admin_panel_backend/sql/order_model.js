@@ -12,6 +12,8 @@ const getAllOrders = (callback) => {
             COALESCE(users.full_name, users.user_name, orders.delivery_name, 'Guest customer') AS full_name,
             orders.total_amount,
             orders.payment_method,
+            orders.delivery_zone,
+            orders.delivery_charge,
             orders.order_status,
             orders.created_at
         FROM orders
@@ -38,6 +40,8 @@ const getOrderById = (id, callback) => {
             COALESCE(u.address, o.delivery_address) AS address,
             o.delivery_city,
             o.delivery_area,
+            o.delivery_zone,
+            o.delivery_charge,
             o.order_notes,
             o.checkout_type,
             o.total_amount,

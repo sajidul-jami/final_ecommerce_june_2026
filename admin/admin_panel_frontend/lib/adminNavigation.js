@@ -7,6 +7,7 @@ import {
   Package,
   Share2,
   ShoppingBag,
+  Settings,
   Star,
   Tags,
   Users
@@ -24,6 +25,7 @@ export const adminNavigation = [
   { href: '/admin/support', label: 'Support', icon: LifeBuoy },
   { href: '/admin/reviews', label: 'Reviews', icon: Star },
   { href: '/admin/social-links', label: 'Social Links', icon: Share2 },
+  { href: '/admin/site-settings', label: 'Site Settings', icon: Settings },
   { href: '/admin/sales', label: 'Sales', icon: BarChart3 },
   { href: '/admin/admin_users', label: 'Admin Users', icon: Users }
 ]
@@ -39,6 +41,7 @@ export const getAdminPageTitle = (pathname = '') => {
   if (pathname.startsWith('/admin/support')) return 'Support'
   if (pathname.startsWith('/admin/reviews')) return 'Reviews'
   if (pathname.startsWith('/admin/social-links')) return 'Social Links'
+  if (pathname.startsWith('/admin/site-settings')) return 'Site Settings'
   if (pathname.startsWith('/admin/sales')) return 'Sales'
   if (pathname.startsWith('/admin/admin_users')) return 'Admin Users'
   if (pathname.startsWith('/admin/dashboard')) return 'Dashboard'

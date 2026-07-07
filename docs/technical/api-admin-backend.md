@@ -505,7 +505,7 @@ Upload product image to MinIO. **Auth:** JWT required (`verifyToken`).
 ```json
 {
   "success": true,
-  "url": "http://localhost:9000/products/images/productsimg/1710000000000-a1b2c3d4.jpg",
+  "url": "http://localhost:9000/ecommerce/products/1710000000000-a1b2c3d4.jpg",
   "fileName": "1710000000000-a1b2c3d4.jpg"
 }
 ```

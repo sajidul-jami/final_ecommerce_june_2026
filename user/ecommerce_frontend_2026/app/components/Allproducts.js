@@ -1,110 +1,50 @@
-'use client';
-
-import { useEffect, useState } from 'react';
-import Link from 'next/link';
-import { useRouter, useSearchParams } from 'next/navigation';
-import Cards from '@/app/components/cards';
+import AllproductsClient from './AllproductsClient';
 import getAllProducts from '@/app/lib/mysqldb';
 import { apiFetch } from '@/app/lib/api';
 
-export default function Allproducts() {
-  const router = useRouter();
-  const searchParams = useSearchParams();
-  const [products, setProducts] = useState([]);
-  const [categoryName, setCategoryName] = useState('');
-  const [loading, setLoading] = useState(true);
-  const [visibleCount, setVisibleCount] = useState(10);
+async function getInitialCategoryName(categoryCode) {
+  if (!categoryCode) return '';
 
-  const querySearch = searchParams.get('search') || '';
-  const queryCategory = searchParams.get('category') || '';
-  const querySort = searchParams.get('sort') || 'newest';
+  try {
+    const categories = await apiFetch('/categories', { cache: 'no-store' });
+    return categories.find((item) => item.cat_code === categoryCode || item.cat_slug === categoryCode)?.name || '';
+  } catch {
+    return '';
+  }
+}
 
-  useEffect(() => {
-    const fetchProducts = async () => {
-      setLoading(true);
-      try {
-        const [productRows, categoryRows] = await Promise.all([
-          getAllProducts({
-            ...(queryCategory ? { category: queryCategory } : {}),
-            ...(querySearch ? { search: querySearch } : {}),
-            ...(querySort !== 'newest' ? { sort: querySort } : {}),
-          }),
-          queryCategory ? apiFetch('/categories') : Promise.resolve([]),
-        ]);
-        const activeCategory = categoryRows.find((item) => item.cat_code === queryCategory || item.cat_slug === queryCategory);
+export default async function Allproducts({ search = '', category = '', sort = 'newest' }) {
+  let initialProducts = [];
+  let initialHasMore = false;
+  let initialCategoryName = '';
 
-        setProducts(productRows);
-        setCategoryName(activeCategory?.name || '');
-        setVisibleCount(10);
-      } catch (error) {
-        console.error(error);
-      } finally {
-        setLoading(false);
-      }
-    };
+  try {
+    const [productRows, categoryName] = await Promise.all([
+      getAllProducts({
+        ...(category ? { category } : {}),
+        ...(search ? { search } : {}),
+        ...(sort !== 'newest' ? { sort } : {}),
+        limit: 11,
+      }),
+      getInitialCategoryName(category),
+    ]);
 
-    fetchProducts();
-  }, [queryCategory, querySearch, querySort]);
-
-  const handleSortChange = (event) => {
-    const params = new URLSearchParams(searchParams.toString());
-
-    if (event.target.value === 'newest') {
-      params.delete('sort');
-    } else {
-      params.set('sort', event.target.value);
-    }
-
-    router.push(params.toString() ? `/?${params.toString()}#shop` : '/#shop');
-  };
+    initialProducts = productRows.slice(0, 10);
+    initialHasMore = productRows.length > 10;
+    initialCategoryName = categoryName;
+  } catch {
+    initialProducts = [];
+    initialHasMore = false;
+  }
 
   return (
-    <section id="shop" className="mx-auto w-full max-w-7xl px-3 py-6 sm:px-5">
-      <div className="mb-4 flex flex-col gap-3 lg:flex-row lg:items-end lg:justify-between">
-        <div>
-          <p className="text-sm font-semibold uppercase tracking-wide text-rose-600">Shop now</p>
-          <h2 className="text-2xl font-bold text-slate-950">
-            {queryCategory ? categoryName || `Category ${queryCategory}` : querySearch ? `Search results for "${querySearch}"` : 'Explore Products'}
-          </h2>
-          {(queryCategory || querySearch) && (
-            <Link href="/#shop" className="mt-1 inline-block text-sm font-semibold text-slate-500 hover:text-rose-600">
-              Clear filters
-            </Link>
-          )}
-        </div>
-        <div className="flex w-full flex-col gap-2 sm:flex-row lg:w-auto">
-          <select
-            value={querySort}
-            onChange={handleSortChange}
-            className="rounded-md border border-slate-300 bg-white px-3 py-2 text-sm font-bold text-slate-800 outline-none focus:border-slate-950"
-          >
-            <option value="newest">Newest</option>
-            <option value="best_selling">Best selling</option>
-            <option value="name_asc">A-Z</option>
-            <option value="price_asc">Price low to high</option>
-            <option value="price_desc">Price high to low</option>
-          </select>
-        </div>
-      </div>
-
-      {loading ? (
-        <div className="rounded-lg bg-white p-8 text-center text-slate-500 shadow-sm">Loading products...</div>
-      ) : (
-        <>
-          <Cards products={products.slice(0, visibleCount)} />
-          {products.length > visibleCount && (
-            <div className="mt-6 text-center">
-              <button
-                type="button"
-                onClick={() => setVisibleCount((count) => count + 10)}
-                className="rounded-md bg-slate-950 px-5 py-3 text-sm font-bold text-white transition hover:bg-rose-600"
-              >
-                Load more
-              </button>
-            </div>
-          )}
-        </>
-      )}
-    </section>
+    <AllproductsClient
+      initialProducts={initialProducts}
+      initialCategoryName={initialCategoryName}
+      initialHasMore={initialHasMore}
+      initialSearch={search}
+      initialCategory={category}
+      initialSort={sort || 'newest'}
+    />
   );
 }

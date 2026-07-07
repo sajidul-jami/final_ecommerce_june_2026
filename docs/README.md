@@ -1,116 +1,49 @@
-# TechTrends BD — Documentation
+# WEBSITE_2026 Documentation
 
-Welcome to the documentation for **TechTrends BD**, a full-stack ecommerce platform built for Bangladesh. This repository contains a customer storefront, customer API, admin panel, and admin API sharing a single MySQL database and MinIO object storage for product images.
+This repository is a full ecommerce system with two Next.js frontends, two Express backends, MySQL, and MinIO.
 
-## Applications
+Use these documents first:
 
-| Application | Path | Stack | Default Port | URL (local) |
-|-------------|------|-------|--------------|-------------|
-| Customer storefront | `user/ecommerce_frontend_2026` | Next.js 16, React 18, Tailwind CSS | 3000 | http://localhost:3000 |
-| Customer API | `user/ecommerce_backend_2026` | Express 4, MySQL2, JWT | 3005 | http://localhost:3005 |
-| Admin panel | `admin/admin_panel_frontend` | Next.js 16, React 19, Tailwind CSS 4 | 3002 | http://localhost:3002 |
-| Admin API | `admin/admin_panel_backend` | Express 5, MySQL2, JWT, MinIO | 3001 | http://localhost:3001 |
-| Database | MySQL 8 | Schema in `new sql/sql_all.txt` | 3306 | — |
-| Object storage | MinIO (external) | S3-compatible bucket `products` | 9000 | http://localhost:9000 |
+| Document | Purpose |
+| --- | --- |
+| [Docker Compose Guide](docker-compose.md) | How the full stack runs with one `docker compose up -d --build` command |
+| [AI Project Context](ai-project-context.md) | Full project map for another AI or developer to understand the system quickly |
+| [User Frontend](services/user-frontend.md) | Customer storefront app, URLs, env, routes, Docker behavior |
+| [User Backend](services/user-backend.md) | Customer API, checkout, products, reviews, SEO slug endpoints |
+| [Admin Frontend](services/admin-frontend.md) | Admin panel app, env, modules, upload settings |
+| [Admin Backend](services/admin-backend.md) | Admin API, database writes, MinIO upload, settings modules |
 
-## Documentation Sections
+Older detailed references are still available under [technical](technical/README.md) and [user-guide](user-guide/README.md).
 
-### User guides
+## Apps And Ports
 
-End-user and operator documentation for shopping and managing the store:
+| Service | Path | Default host port | Container port |
+| --- | --- | ---: | ---: |
+| User frontend | `user/ecommerce_frontend_2026` | `3000` | `3000` |
+| User backend | `user/ecommerce_backend_2026` | `3005` | `3005` |
+| Admin frontend | `admin/admin_panel_frontend` | `3002` | `3000` |
+| Admin backend | `admin/admin_panel_backend` | `3001` | `3001` |
+| MySQL | `mysql:8.0` | `3306` | `3306` |
+| MinIO API | `minio/minio` | `9000` | `9000` |
+| MinIO console | `minio/minio` | `9001` | `9001` |
 
-- [User Guide Index](user-guide/README.md)
-- [Customer Shopping Guide](user-guide/customer-shopping-guide.md) — browse, cart, checkout, account, reviews, support
-- [Admin Panel Guide](user-guide/admin-panel-guide.md) — dashboard, orders, products, categories, customers, sales
+## Fast Start
 
-### Technical documentation
-
-Developer and DevOps documentation:
-
-- [Technical Index](technical/README.md)
-- [Architecture](technical/architecture.md) — system design, repo layout, key decisions
-- [Local Development](technical/local-development.md) — run all services on your machine
-- [Production Deployment](technical/production-deployment.md) — Docker Compose and Kubernetes
-- [Environment Variables](technical/environment-variables.md) — all configuration keys
-- [Database Schema](technical/database-schema.md) — tables, relationships, enums
-- [User Backend API](technical/api-user-backend.md) — customer API reference
-- [Admin Backend API](technical/api-admin-backend.md) — admin API reference
-- [Security Notes](technical/security-notes.md) — known issues and hardening recommendations
-
-## Quick Start for Developers
-
-### Prerequisites
-
-- Node.js 18+
-- MySQL 8.x
-- MinIO (or compatible S3 storage) for product image uploads
-- npm
-
-### 1. Database
-
-Import the schema:
+From the repository root:
 
 ```powershell
-mysql -u root -p < "new sql/sql_all.txt"
+Copy-Item .env.docker.example .env
+docker compose up -d --build
 ```
 
-Create at least one row in the `admins` table before using the admin panel (see [Database Schema](technical/database-schema.md)).
+Default URLs when `.env` has `APP_HOST=192.168.1.99`:
 
-### 2. Environment files
+| Area | URL |
+| --- | --- |
+| Customer site | `http://192.168.1.99:3000` |
+| Customer API | `http://192.168.1.99:3005` |
+| Admin panel | `http://192.168.1.99:3002` |
+| Admin API | `http://192.168.1.99:3001` |
+| MinIO console | `http://192.168.1.99:9001` |
 
-Copy each app's `.env.example` to `.env` and adjust values:
-
-| App | Template |
-|-----|----------|
-| User frontend | `user/ecommerce_frontend_2026/.env.example` |
-| User backend | `user/ecommerce_backend_2026/.env.example` |
-| Admin frontend | `admin/admin_panel_frontend/.env.example` |
-| Admin backend | `admin/admin_panel_backend/.env.example` |
-
-For Docker production, use the root `.env.production.example`.
-
-### 3. Start services
-
-In separate terminals:
-
-```powershell
-# User backend (port 3005)
-cd user/ecommerce_backend_2026
-npm install && npm start
-
-# User frontend (port 3000)
-cd user/ecommerce_frontend_2026
-npm install && npm run dev
-
-# Admin backend (port 3001)
-cd admin/admin_panel_backend
-npm install && npm start
-
-# Admin frontend (port 3002)
-cd admin/admin_panel_frontend
-npm install && npm run dev -- -p 3002
-```
-
-### 4. Verify
-
-| Check | Command / URL |
-|-------|---------------|
-| User API health | `GET http://localhost:3005/health` |
-| Admin API health | `GET http://localhost:3001/health` |
-| Storefront | http://localhost:3000 |
-| Admin panel | http://localhost:3002 |
-
-For full setup including MySQL and MinIO, see [Local Development](technical/local-development.md).
-
-## Related Files in the Repository
-
-| File | Purpose |
-|------|---------|
-| `PRODUCTION_DEPLOYMENT.md` | Deployment quick reference at repo root |
-| `docker-compose.production.yml` | Production Docker Compose stack |
-| `k8s/` | Kubernetes manifests (apps only; MySQL external) |
-| `new sql/sql_all.txt` | Canonical database schema |
-
-## Currency and Locale
-
-All customer-facing prices use **BDT (Bangladeshi Taka)** formatted with `en-BD` locale. Payment methods supported at checkout: Cash On Delivery, bKash, Nagad, and Card.
+If your machine IP is different, change `APP_HOST` in `.env` before building the frontends.

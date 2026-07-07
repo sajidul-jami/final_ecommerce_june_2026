@@ -141,6 +141,35 @@ const normalizeSearchTerm = (value = '') =>
     .replace(/[^a-z0-9]+/g, ' ')
     .trim();
 
+const slugify = (value = '') =>
+  String(value)
+    .toLowerCase()
+    .trim()
+    .replace(/[^a-z0-9]+/g, '-')
+    .replace(/(^-|-$)/g, '') || 'item';
+
+const uniqueProductSlug = async (name, requestedSlug = '', excludeId = null) => {
+  const baseSlug = slugify(requestedSlug || name);
+  let slug = baseSlug;
+  let suffix = 2;
+
+  while (true) {
+    const params = [slug];
+    let excludeSql = '';
+
+    if (excludeId) {
+      excludeSql = ' AND id <> ?';
+      params.push(excludeId);
+    }
+
+    const [rows] = await pool.query(`SELECT id FROM products WHERE slug = ?${excludeSql} LIMIT 1`, params);
+    if (!rows.length) return slug;
+
+    slug = `${baseSlug}-${suffix}`;
+    suffix += 1;
+  }
+};
+
 const levenshteinDistance = (a, b) => {
   if (a === b) return 0;
   if (!a) return b.length;
@@ -302,8 +331,12 @@ const optionalRows = async (res, query, params = []) => {
   }
 };
 
-const getSafeProductRow = async (id) => {
+const getSafeProductRow = async (identifier) => {
   let rows;
+  const numericId = Number(identifier);
+  const params = Number.isFinite(numericId) && numericId > 0
+    ? [numericId, String(identifier)]
+    : [0, String(identifier)];
 
   try {
     [rows] = await pool.query(
@@ -316,23 +349,39 @@ const getSafeProductRow = async (id) => {
          FROM details
          GROUP BY product_id
        ) sold ON sold.product_id = p.id
-       WHERE p.id = ? AND (p.status IS NULL OR p.status = 'Active')`,
-      [id]
+       WHERE (p.id = ? OR p.slug = ?) AND (p.status IS NULL OR p.status = 'Active')`,
+      params
     );
   } catch (error) {
     if (error?.code !== 'ER_BAD_FIELD_ERROR' && error?.code !== 'ER_NO_SUCH_TABLE') throw error;
-    [rows] = await pool.query(
-      `SELECT p.*, c.name AS category_name, COALESCE(sold.total_sold, 0) AS sold_count
-       FROM products p
-       LEFT JOIN category c ON c.id = p.category_id
-       LEFT JOIN (
-         SELECT product_id, SUM(quantity) AS total_sold
-         FROM details
-         GROUP BY product_id
-       ) sold ON sold.product_id = p.id
-       WHERE p.id = ? AND (p.status IS NULL OR p.status = 'Active')`,
-      [id]
-    );
+    try {
+      [rows] = await pool.query(
+        `SELECT p.*, c.name AS category_name, COALESCE(sold.total_sold, 0) AS sold_count
+         FROM products p
+         LEFT JOIN category c ON c.id = p.category_id
+         LEFT JOIN (
+           SELECT product_id, SUM(quantity) AS total_sold
+           FROM details
+           GROUP BY product_id
+         ) sold ON sold.product_id = p.id
+         WHERE (p.id = ? OR p.slug = ?) AND (p.status IS NULL OR p.status = 'Active')`,
+        params
+      );
+    } catch (fallbackError) {
+      if (fallbackError?.code !== 'ER_BAD_FIELD_ERROR') throw fallbackError;
+      [rows] = await pool.query(
+        `SELECT p.*, c.name AS category_name, COALESCE(sold.total_sold, 0) AS sold_count
+         FROM products p
+         LEFT JOIN category c ON c.id = p.category_id
+         LEFT JOIN (
+           SELECT product_id, SUM(quantity) AS total_sold
+           FROM details
+           GROUP BY product_id
+         ) sold ON sold.product_id = p.id
+         WHERE p.id = ? AND (p.status IS NULL OR p.status = 'Active')`,
+        [numericId || 0]
+      );
+    }
   }
 
   if (!rows[0]) return null;
@@ -665,7 +714,7 @@ app.get('/brands', async (req, res) => {
   try {
     const rows = await optionalRows(
       res,
-      `SELECT id, name, slug, logo
+      `SELECT id, name, slug, logo, description, seo_title, seo_description, seo_keywords
        FROM brands
        WHERE status = 'Active'
        ORDER BY name ASC`
@@ -674,6 +723,57 @@ app.get('/brands', async (req, res) => {
   } catch (error) {
     console.error('Fetch brands failed:', error);
     res.status(500).json({ error: 'Error fetching brands from database' });
+  }
+});
+
+app.get('/categories/:slug', async (req, res) => {
+  try {
+    const rawSlug = String(req.params.slug || '').trim();
+    const decodedSlug = decodeURIComponent(rawSlug);
+    const normalizedSlug = slugify(decodedSlug);
+    const normalizedName = decodedSlug.replace(/-/g, ' ').toLowerCase().trim();
+    const [rows] = await pool.query(
+      `SELECT *
+       FROM category
+       WHERE cat_slug = ?
+          OR cat_code = ?
+          OR LOWER(name) = ?
+          OR LOWER(REPLACE(name, ' ', '-')) = ?
+          OR LOWER(TRIM(BOTH '-' FROM REGEXP_REPLACE(name, '[^a-zA-Z0-9]+', '-'))) = ?
+       LIMIT 1`,
+      [decodedSlug, decodedSlug, normalizedName, normalizedSlug, normalizedSlug]
+    );
+
+    if (!rows.length) {
+      return res.status(404).json({ error: 'Category not found' });
+    }
+
+    res.json(rows[0]);
+  } catch (error) {
+    console.error('Fetch category failed:', error);
+    res.status(500).json({ error: 'Error fetching category from database' });
+  }
+});
+
+app.get('/brands/:slug', async (req, res) => {
+  try {
+    const rows = await optionalRows(
+      res,
+      `SELECT id, name, slug, logo, description, seo_title, seo_description, seo_keywords
+       FROM brands
+       WHERE status = 'Active' AND slug = ?
+       LIMIT 1`,
+      [req.params.slug]
+    );
+
+    if (!rows.length) {
+      return res.status(404).json({ error: 'Brand not found' });
+    }
+
+    res.json(rows[0]);
+  } catch (error) {
+    console.error('Fetch brand failed:', error);
+    res.status(500).json({ error: 'Error fetching brand from database' });
   }
 });
 
@@ -779,15 +879,100 @@ app.get('/social-links', async (req, res) => {
   }
 });
 
+app.get('/site-settings', async (req, res) => {
+  try {
+    const rows = await optionalRows(
+      res,
+      `SELECT website_name, website_logo, footer_logo, favicon, website_description,
+              footer_title, footer_description, footer_quick_links,
+              contact_email, phone, whatsapp, office_address, google_map,
+              support_email, footer_copyright, meta_title, meta_description, meta_keywords,
+              google_analytics, google_tag_manager, facebook_pixel,
+              inside_dhaka_delivery_charge, outside_dhaka_delivery_charge
+       FROM site_settings
+       WHERE id = 1
+       LIMIT 1`
+    );
+
+    res.json(rows[0] || {});
+  } catch (error) {
+    console.error('Fetch site settings failed:', error);
+    res.status(500).json({ error: 'Error fetching site settings from database' });
+  }
+});
+
+app.get('/cms-pages/:slug', async (req, res) => {
+  try {
+    const rows = await optionalRows(
+      res,
+      `SELECT id, title, slug, content, meta_title, meta_description, meta_keywords, updated_at, created_at
+       FROM cms_pages
+       WHERE slug = ? AND status = 'Active'
+       LIMIT 1`,
+      [req.params.slug]
+    );
+
+    if (!rows.length) {
+      return res.status(404).json({ error: 'Page not found' });
+    }
+
+    res.json(rows[0]);
+  } catch (error) {
+    console.error('Fetch CMS page failed:', error);
+    res.status(500).json({ error: 'Error fetching CMS page from database' });
+  }
+});
+
 app.get('/products', async (req, res) => {
   try {
-    const { category, brand, search, limit, sort = 'newest' } = req.query;
+    const { category, brand, tag, search, limit, offset = 0, sort = 'newest', include_count } = req.query;
     const where = ["(p.status IS NULL OR p.status = 'Active')"];
     const params = [];
 
     if (category) {
-      where.push('(p.category_id = ? OR c.cat_slug = ? OR c.cat_code = ? OR c.cat_code LIKE ?)');
-      params.push(category, category, category, `${category}-%`);
+      const decodedCategory = decodeURIComponent(String(category));
+      const categorySlug = slugify(decodedCategory);
+      const categoryName = decodedCategory.replace(/-/g, ' ').toLowerCase().trim();
+      const numericCategoryId = Number(decodedCategory);
+      const [categoryMatches] = await pool.query(
+        `WITH RECURSIVE matched_category AS (
+          SELECT id, cat_code, parent_code
+          FROM category
+          WHERE id = ?
+             OR cat_slug = ?
+             OR cat_slug = ?
+             OR cat_code = ?
+             OR LOWER(name) = ?
+             OR LOWER(REPLACE(name, ' ', '-')) = ?
+             OR LOWER(TRIM(BOTH '-' FROM REGEXP_REPLACE(name, '[^a-zA-Z0-9]+', '-'))) = ?
+        ),
+        category_tree AS (
+          SELECT id, cat_code, parent_code
+          FROM matched_category
+          UNION ALL
+          SELECT child.id, child.cat_code, child.parent_code
+          FROM category child
+          INNER JOIN category_tree parent ON child.parent_code = parent.cat_code
+        )
+        SELECT DISTINCT id FROM category_tree`,
+        [
+          Number.isFinite(numericCategoryId) ? numericCategoryId : 0,
+          decodedCategory,
+          categorySlug,
+          decodedCategory,
+          categoryName,
+          categorySlug,
+          categorySlug,
+        ]
+      );
+      const categoryIds = categoryMatches.map((row) => Number(row.id)).filter(Boolean);
+
+      if (!categoryIds.length) {
+        return res.json(include_count === '1' || include_count === 'true' ? { products: [], total: 0 } : []);
+      }
+
+      where.push(`p.category_id IN (${categoryIds.map(() => '?').join(',')})`);
+      params.push(...categoryIds);
     }
 
     if (brand) {
@@ -795,10 +980,17 @@ app.get('/products', async (req, res) => {
       params.push(brand, brand, brand);
     }
 
+    if (tag) {
+      where.push('(tags.tag_search_text LIKE ? OR tags.tags LIKE ?)');
+      params.push(`%${normalizeSearchTerm(tag)}%`, `%${tag}%`);
+    }
+
     const safeLimit = Math.min(Math.max(Number(limit || 0), 0), 60);
+    const safeOffset = Math.max(Number(offset || 0), 0);
     const normalizedSearch = normalizeSearchTerm(search);
-    const candidateLimit = normalizedSearch ? Math.max(safeLimit || 0, 500) : safeLimit;
-    const limitSql = candidateLimit ? ` LIMIT ${candidateLimit}` : '';
+    const candidateLimit = normalizedSearch ? Math.max((safeLimit || 0) + safeOffset, 500) : safeLimit;
+    const sqlOffset = normalizedSearch ? 0 : safeOffset;
+    const limitSql = candidateLimit ? ` LIMIT ${sqlOffset}, ${candidateLimit}` : '';
     const sortOptions = {
       newest: 'p.created_at DESC, p.id DESC',
       best_selling: 'COALESCE(p.counter, 0) DESC, p.created_at DESC, p.id DESC',
@@ -838,6 +1030,7 @@ app.get('/products', async (req, res) => {
     try {
       [rows] = await pool.query(
         `SELECT p.*, c.name AS category_name, b.name AS brand_name, b.slug AS brand_slug,
+                COUNT(*) OVER() AS total_count,
                 COALESCE(sold.total_sold, 0) AS sold_count,
                 tags.tags,
                 ${sqlSearchScore} AS sql_search_score
@@ -862,6 +1055,9 @@ app.get('/products', async (req, res) => {
       );
     } catch (error) {
       if ((error?.code !== 'ER_BAD_FIELD_ERROR' && error?.code !== 'ER_NO_SUCH_TABLE') || brand) throw error;
+      if (tag) {
+        return res.json([]);
+      }
       const fallbackSearchScore = normalizedSearch
         ? `(
             CASE WHEN LOWER(p.name) = ? THEN 120 ELSE 0 END +
@@ -884,6 +1080,7 @@ app.get('/products', async (req, res) => {
         : [];
       [rows] = await pool.query(
         `SELECT p.*, c.name AS category_name, COALESCE(sold.total_sold, 0) AS sold_count,
+                COUNT(*) OVER() AS total_count,
                 NULL AS tags, ${fallbackSearchScore} AS sql_search_score
          FROM products p
          LEFT JOIN category c ON c.id = p.category_id
@@ -904,8 +1101,17 @@ app.get('/products', async (req, res) => {
           .filter((row) => row.search_score >= 58)
           .sort((a, b) => b.search_score - a.search_score || Number(b.sold_count || 0) - Number(a.sold_count || 0))
       : rows;
-    const products = rankedRows.slice(0, safeLimit || rankedRows.length).map(normalizeProduct);
+    const pagedRows = normalizedSearch
+      ? rankedRows.slice(safeOffset, safeLimit ? safeOffset + safeLimit : rankedRows.length)
+      : rankedRows;
+    const products = pagedRows.map(normalizeProduct);
     await hydrateProductExtras(products);
+
+    if (include_count === '1' || include_count === 'true') {
+      const total = normalizedSearch ? rankedRows.length : Number(rows[0]?.total_count || rankedRows.length || 0);
+      return res.json({ products, total });
+    }
+
     res.json(products);
   } catch (error) {
     console.error('Fetch products failed:', error);
@@ -939,7 +1145,7 @@ app.get('/search-suggestions', async (req, res) => {
     let rows;
     try {
       [rows] = await pool.query(
-        `SELECT p.id, p.name, p.price, p.photo, p.sku,
+        `SELECT p.id, p.name, p.slug, p.price, p.photo, p.sku,
                 c.name AS category_name, b.name AS brand_name,
                 COALESCE(sold.total_sold, 0) AS sold_count,
                 tags.tags,
@@ -975,7 +1181,7 @@ app.get('/search-suggestions', async (req, res) => {
         CASE WHEN SOUNDEX(p.name) = SOUNDEX(?) THEN 45 ELSE 0 END
       )`;
       [rows] = await pool.query(
-        `SELECT p.id, p.name, p.price, p.photo, p.sku,
+        `SELECT p.id, p.name, p.slug, p.price, p.photo, p.sku,
                 c.name AS category_name, NULL AS brand_name,
                 COALESCE(sold.total_sold, 0) AS sold_count,
                 NULL AS tags, ${fallbackScoreSql} AS sql_search_score
@@ -998,9 +1204,10 @@ app.get('/search-suggestions', async (req, res) => {
       .filter((row) => row.search_score >= 58)
       .sort((a, b) => b.search_score - a.search_score || Number(b.sold_count || 0) - Number(a.sold_count || 0))
       .slice(0, safeLimit)
-      .map((row) => ({
+        .map((row) => ({
         id: row.id,
         name: row.name,
+        slug: row.slug || '',
         price: Number(row.price || 0),
         photo: row.photo || 'products/noimage.jpg',
         category_name: row.category_name || '',
@@ -1035,6 +1242,23 @@ app.get('/singleproducts/:id', async (req, res) => {
     res.json(product);
   } catch (error) {
     console.error('Fetch product failed:', error);
+    res.status(500).json({ error: 'Error fetching product from database' });
+  }
+});
+
+app.get('/product/:slug', async (req, res) => {
+  try {
+    let product = await getSafeProductRow(req.params.slug);
+
+    if (!product) {
+      return res.status(404).json({ error: 'Product not found' });
+    }
+
+    const activeOffers = await getActiveOffersForProducts(pool, [product.id]);
+    product = applyOfferToProduct(product, activeOffers.get(Number(product.id)));
+    res.json(product);
+  } catch (error) {
+    console.error('Fetch product by slug failed:', error);
     res.status(500).json({ error: 'Error fetching product from database' });
   }
 });
@@ -1149,6 +1373,7 @@ const checkoutHandler = async (req, res) => {
       delivery_address,
       delivery_city,
       delivery_area,
+      delivery_zone,
       order_notes,
     } = req.body;
 
@@ -1159,11 +1384,29 @@ const checkoutHandler = async (req, res) => {
       return res.status(400).json({ error: 'Products are required' });
     }
 
-    if (isGuestCheckout && (!delivery_name || !delivery_phone || !delivery_address || !delivery_city)) {
-      return res.status(400).json({ error: 'Name, phone, address and city are required for guest checkout' });
+    if (!delivery_name || !delivery_phone || !delivery_address || !delivery_city || !delivery_zone) {
+      return res.status(400).json({ error: 'Name, phone, address, city and delivery area are required' });
+    }
+
+    const safeDeliveryZone = delivery_zone === 'Outside Dhaka' ? 'Outside Dhaka' : delivery_zone === 'Inside Dhaka' ? 'Inside Dhaka' : '';
+
+    if (!safeDeliveryZone) {
+      return res.status(400).json({ error: 'Please select Inside Dhaka or Outside Dhaka' });
     }
 
     await connection.beginTransaction();
+
+    const settingsRows = await optionalRows(
+      { json: () => {} },
+      `SELECT inside_dhaka_delivery_charge, outside_dhaka_delivery_charge
+       FROM site_settings
+       WHERE id = 1
+       LIMIT 1`
+    );
+    const deliverySettings = settingsRows[0] || {};
+    const deliveryCharge = safeDeliveryZone === 'Inside Dhaka'
+      ? Number(deliverySettings.inside_dhaka_delivery_charge ?? 80)
+      : Number(deliverySettings.outside_dhaka_delivery_charge ?? 120);
 
     const productIds = products.map((item) => Number(item.id || item.product_id)).filter(Boolean);
     const [dbProducts] = await connection.query(
@@ -1197,10 +1440,12 @@ const checkoutHandler = async (req, res) => {
       orderItems.push({ productId, quantity: requestedQty, price });
     }
 
+    totalAmount += deliveryCharge;
+
     const [orderResult] = await connection.query(
       `INSERT INTO orders
-       (customer_id, total_amount, payment_method, order_status, delivery_address_id, delivery_name, delivery_phone, delivery_email, delivery_address, delivery_city, delivery_area, order_notes, checkout_type)
-       VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+       (customer_id, total_amount, payment_method, order_status, delivery_address_id, delivery_name, delivery_phone, delivery_email, delivery_address, delivery_city, delivery_area, delivery_zone, delivery_charge, order_notes, checkout_type)
+       VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
       [
         customerId,
         totalAmount,
@@ -1213,6 +1458,8 @@ const checkoutHandler = async (req, res) => {
         delivery_address || null,
         delivery_city || null,
         delivery_area || null,
+        safeDeliveryZone,
+        deliveryCharge,
         order_notes || null,
         isGuestCheckout ? 'guest' : 'user',
       ]
@@ -1264,6 +1511,8 @@ const checkoutHandler = async (req, res) => {
       message: 'Order placed successfully',
       orderId,
       totalAmount,
+      deliveryCharge,
+      deliveryZone: safeDeliveryZone,
       order_status: 'Pending',
     });
   } catch (error) {
@@ -1285,22 +1534,25 @@ app.post('/sales', async (req, res) => {
 
 app.post('/productadd', async (req, res) => {
   try {
-    const { category_id, name, description, slug, price, photo, counter, quantity, sku, status, images = [] } = req.body;
+    const { category_id, brand_id, country_of_origin, name, description, slug, price, photo, counter, quantity, sku, status, images = [] } = req.body;
 
     if (!category_id || !name || !price) {
       return res.status(400).json({ error: 'Category, name and price are required' });
     }
 
+    const safeSlug = await uniqueProductSlug(name, slug);
     const [result] = await pool.query(
       `INSERT INTO products
-       (category_id, name, price, description, slug, photo, counter, quantity, sku, status)
-       VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+       (category_id, brand_id, country_of_origin, name, price, description, slug, photo, counter, quantity, sku, status)
+       VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
       [
         category_id,
+        brand_id || null,
+        country_of_origin || null,
         name,
         price,
         description || '',
-        slug || name.toLowerCase().replace(/\s+/g, '-'),
+        safeSlug,
         photo || 'products/noimage.jpg',
         counter || 0,
         quantity || 0,

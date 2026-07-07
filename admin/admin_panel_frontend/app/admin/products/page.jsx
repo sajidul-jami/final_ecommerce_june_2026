@@ -14,6 +14,7 @@ const IMAGE_BASE = PRODUCT_IMAGE_BASE_URL
 const emptyProduct = {
   category_id: '',
   brand_id: '',
+  country_of_origin: '',
   name: '',
   sku: '',
   price: '',
@@ -21,6 +22,20 @@ const emptyProduct = {
   description: '',
   photo: []
 }
+
+const COUNTRY_OPTIONS = [
+  'Bangladesh',
+  'China',
+  'India',
+  'Japan',
+  'Malaysia',
+  'Singapore',
+  'South Korea',
+  'Taiwan',
+  'Thailand',
+  'United States',
+  'Vietnam'
+]
 
 const money = (value) =>
   new Intl.NumberFormat('en-US', {
@@ -57,6 +72,7 @@ export default function ProductsPage() {
   const [saving, setSaving] = useState(false)
   const [error, setError] = useState('')
   const [editId, setEditId] = useState(null)
+  const [manualCountry, setManualCountry] = useState(false)
 
   const loadProducts = async () => {
     setLoading(true)
@@ -145,6 +161,7 @@ export default function ProductsPage() {
         sku: form.sku?.trim() || null,
         category_id: Number(form.category_id),
         brand_id: form.brand_id ? Number(form.brand_id) : null,
+        country_of_origin: form.country_of_origin?.trim() || null,
         price: Number(form.price),
         quantity: Number(form.quantity || 0),
         description: form.description,
@@ -160,6 +177,7 @@ export default function ProductsPage() {
 
       setForm(emptyProduct)
       setEditId(null)
+      setManualCountry(false)
       await loadProducts()
 
     } catch (err) {
@@ -171,9 +189,11 @@ export default function ProductsPage() {
 
   const handleEdit = (product) => {
     setEditId(product.id)
+    setManualCountry(Boolean(product.country_of_origin) && !COUNTRY_OPTIONS.includes(product.country_of_origin))
     setForm({
       category_id: product.category_id || '',
       brand_id: product.brand_id || '',
+      country_of_origin: product.country_of_origin || '',
       name: product.name || '',
       sku: product.sku || '',
       price: product.price || '',
@@ -188,7 +208,14 @@ export default function ProductsPage() {
   const cancelEdit = () => {
     setEditId(null)
     setForm(emptyProduct)
+    setManualCountry(false)
   }
+
+  const countryPreset = COUNTRY_OPTIONS.includes(form.country_of_origin)
+    ? form.country_of_origin
+    : manualCountry
+      ? '__manual__'
+      : ''
 
   const handleDelete = async (id) => {
     if (!confirm(`Delete product #${id}?`)) return
@@ -369,6 +396,29 @@ export default function ProductsPage() {
               </option>
             ))}
           </select>
+          <select
+            value={countryPreset}
+            onChange={(e) => {
+              const manual = e.target.value === '__manual__'
+              setManualCountry(manual)
+              setForm((prev) => ({ ...prev, country_of_origin: manual ? prev.country_of_origin : e.target.value }))
+            }}
+            className="w-full border p-2"
+          >
+            <option value="">Country of origin (optional)</option>
+            {COUNTRY_OPTIONS.map((country) => (
+              <option key={country} value={country}>{country}</option>
+            ))}
+            <option value="__manual__">Manual entry</option>
+          </select>
+          {manualCountry && (
+            <input
+              value={form.country_of_origin}
+              onChange={(e) => setForm((prev) => ({ ...prev, country_of_origin: e.target.value }))}
+              placeholder="Enter country of origin"
+              className="w-full border p-2"
+            />
+          )}
           <input name="price" value={form.price} onChange={handleChange} placeholder="Price" className="w-full border p-2" />
           <input name="quantity" value={form.quantity} onChange={handleChange} placeholder="Quantity" className="w-full border p-2" />
 

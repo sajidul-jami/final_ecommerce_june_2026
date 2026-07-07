@@ -22,6 +22,9 @@ export default function ProductImage({ photo, alt, className = 'object-contain p
       {...props}
       src={src}
       alt={alt || 'Product image'}
+      sizes={props.sizes || '(max-width: 640px) 50vw, (max-width: 1024px) 33vw, 20vw'}
+      loading={props.priority ? undefined : props.loading || 'lazy'}
+      decoding="async"
       className={className}
       onError={() => setSrc(getProductImageSrc('products/noimage.jpg'))}
     />

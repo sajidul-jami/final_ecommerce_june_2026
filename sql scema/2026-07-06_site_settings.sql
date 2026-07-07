@@ -1,0 +1,67 @@
+USE ecommerce;
+
+CREATE TABLE IF NOT EXISTS site_settings (
+    id TINYINT PRIMARY KEY DEFAULT 1,
+    website_name VARCHAR(150),
+    website_logo VARCHAR(500),
+    footer_logo VARCHAR(500),
+    favicon VARCHAR(500),
+    website_description TEXT,
+    footer_title VARCHAR(150),
+    footer_description TEXT,
+    footer_quick_links TEXT,
+    contact_email VARCHAR(150),
+    phone VARCHAR(50),
+    whatsapp VARCHAR(50),
+    office_address TEXT,
+    google_map TEXT,
+    support_email VARCHAR(150),
+    footer_copyright VARCHAR(255),
+    meta_title VARCHAR(180),
+    meta_description VARCHAR(500),
+    meta_keywords VARCHAR(500),
+    google_analytics TEXT,
+    google_tag_manager TEXT,
+    facebook_pixel TEXT,
+    inside_dhaka_delivery_charge DECIMAL(10,2) DEFAULT 80,
+    outside_dhaka_delivery_charge DECIMAL(10,2) DEFAULT 120,
+    updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+    CHECK (id = 1)
+);
+
+INSERT INTO site_settings (
+    id,
+    website_name,
+    website_description,
+    footer_title,
+    footer_description,
+    footer_quick_links,
+    contact_email,
+    phone,
+    office_address,
+    support_email,
+    footer_copyright,
+    meta_title,
+    meta_description,
+    meta_keywords,
+    inside_dhaka_delivery_charge,
+    outside_dhaka_delivery_charge
+) VALUES (
+    1,
+    'TechTrends BD',
+    'Quality tech products in Bangladesh with fast checkout and cash on delivery.',
+    'TechTrends BD',
+    'Trusted tech products in Bangladesh with fast ordering, clear stock and easy payment options.',
+    'Shop | /\nHelp & Support | /help_support\nCart | /cart',
+    'support@techtrendsbd.com',
+    '+880 1700-000000',
+    'Dhaka, Bangladesh',
+    'support@techtrendsbd.com',
+    'Copyright 2026 TechTrendsBD.com. All rights reserved.',
+    'TechTrends BD - Quality Tech Products in Bangladesh',
+    'Quality tech products in Bangladesh with fast checkout and cash on delivery.',
+    'tech products Bangladesh, laptops, mobile phones, tablets, gaming PC, TechTrends BD',
+    80,
+    120
+)
+ON DUPLICATE KEY UPDATE id = id;

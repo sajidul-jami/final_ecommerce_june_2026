@@ -137,7 +137,7 @@ The products table shows all products from the database including name, SKU, pri
    - Product photo (upload via MinIO)
 4. Save.
 
-Product images are uploaded to MinIO at path `products/images/productsimg/` via `POST /upload`.
+Product images are uploaded through `POST /upload` and stored in the configured MinIO bucket, usually `ecommerce`.
 
 ### Edit product
 
@@ -265,7 +265,7 @@ Remove an admin account. Ensure at least one active admin remains.
 | "Unauthorized" on all pages | Cookie not sent or expired | Log in again; check CORS and `credentials: include` |
 | CORS error in browser | Admin frontend URL not in `CLIENT_URL` | Add `http://localhost:3002` to admin backend `CLIENT_URL` |
 | Product image upload fails | MinIO not running or wrong credentials | Start MinIO; verify `MINIO_*` env vars |
-| Images show broken in panel | Wrong `NEXT_PUBLIC_PRODUCT_IMAGE_BASE_URL` | Match MinIO public URL + `/products/images/productsimg` |
+| Images show broken in panel | Wrong `NEXT_PUBLIC_PRODUCT_IMAGE_BASE_URL` | Match MinIO public bucket URL, for example `http://localhost:9000/ecommerce` |
 | Dashboard shows $ instead of ৳ | Admin dashboard uses USD formatter | Cosmetic; data is correct |
 | Cannot connect to API | Admin backend not running | Start `admin_panel_backend` on port 3001 |
 | LAN/mobile testing fails | Using `localhost` in env | Use your machine's LAN IP in all `NEXT_PUBLIC_*` URLs |
