@@ -74,11 +74,15 @@ export default function SiteSettingsPage() {
   const [loading, setLoading] = useState(true)
   const [saving, setSaving] = useState(false)
   const [message, setMessage] = useState('')
+  const [messageType, setMessageType] = useState('success')
 
   useEffect(() => {
     getSiteSettings()
       .then((data) => setSettings({ ...emptySettings, ...data }))
-      .catch((error) => setMessage(error.message))
+      .catch((error) => {
+        setMessageType('error')
+        setMessage(error.message)
+      })
       .finally(() => setLoading(false))
   }, [])
 
@@ -88,9 +92,12 @@ export default function SiteSettingsPage() {
     event.preventDefault()
     setSaving(true)
     setMessage('')
+    setMessageType('success')
 
     try {
       const payload = { ...settings }
+      payload.inside_dhaka_delivery_charge = payload.inside_dhaka_delivery_charge || '80'
+      payload.outside_dhaka_delivery_charge = payload.outside_dhaka_delivery_charge || '120'
 
       for (const field of imageFields) {
         if (files[field.key]) {
@@ -101,8 +108,10 @@ export default function SiteSettingsPage() {
       await saveSiteSettings(payload)
       setSettings({ ...emptySettings, ...payload })
       setFiles({})
+      setMessageType('success')
       setMessage('Site settings saved.')
     } catch (error) {
+      setMessageType('error')
       setMessage(error.message || 'Unable to save site settings')
     } finally {
       setSaving(false)
@@ -120,7 +129,15 @@ export default function SiteSettingsPage() {
           <Settings size={18} className="text-emerald-600" />
           <h2 className="text-xl font-semibold">Site Settings</h2>
         </div>
-        {message && <p className="m-4 rounded-md bg-emerald-50 p-3 text-sm font-semibold text-emerald-800">{message}</p>}
+        {message && (
+          <p className={`m-4 rounded-md p-3 text-sm font-semibold ${
+            messageType === 'error'
+              ? 'bg-red-50 text-red-700'
+              : 'bg-emerald-50 text-emerald-800'
+          }`}>
+            {message}
+          </p>
+        )}
 
         <div className="grid gap-4 p-4 md:grid-cols-3">
           {imageFields.map((field) => {

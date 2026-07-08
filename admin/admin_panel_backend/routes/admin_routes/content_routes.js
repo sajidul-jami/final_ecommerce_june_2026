@@ -78,6 +78,20 @@ const siteSettingsFields = [
     'outside_dhaka_delivery_charge'
 ]
 
+const normalizeSiteSettingValue = (field, value) => {
+    if (field === 'inside_dhaka_delivery_charge') {
+        const amount = Number(value)
+        return Number.isFinite(amount) && amount >= 0 ? amount : 80
+    }
+
+    if (field === 'outside_dhaka_delivery_charge') {
+        const amount = Number(value)
+        return Number.isFinite(amount) && amount >= 0 ? amount : 120
+    }
+
+    return value === undefined || value === null ? '' : String(value)
+}
+
 const ensureProductsNotInActiveOffer = async (productIds, excludeOfferId = null) => {
     const ids = [...new Set((productIds || []).map(Number).filter(Boolean))]
 
@@ -436,7 +450,7 @@ router.get('/site-settings', optionalList(async () => {
 }))
 
 router.put('/site-settings', optionalWrite(async (req) => {
-    const values = siteSettingsFields.map((field) => req.body[field] || '')
+    const values = siteSettingsFields.map((field) => normalizeSiteSettingValue(field, req.body[field]))
     const updateSql = siteSettingsFields.map((field) => `${field} = VALUES(${field})`).join(', ')
 
     await pool.query(
