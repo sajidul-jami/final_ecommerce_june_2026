@@ -22,8 +22,19 @@ export default function Navbar({ settings = defaultSiteSettings }) {
   const [cartBump, setCartBump] = useState(false);
   const [headerHeight, setHeaderHeight] = useState(null);
   const [brands, setBrands] = useState([]);
+  const [offers, setOffers] = useState([]);
   const [showBrands, setShowBrands] = useState(false);
+  const [showOffers, setShowOffers] = useState(false);
   const logoSrc = resolveSiteImage(settings.website_logo) || websitelogo;
+
+  const slugify = (value = '') =>
+    String(value)
+      .toLowerCase()
+      .trim()
+      .replace(/[^a-z0-9]+/g, '-')
+      .replace(/(^-|-$)/g, '');
+
+  const productHref = (product) => `/product/${encodeURIComponent(product.slug || slugify(product.name) || product.id)}`;
 
   useEffect(() => {
     setMounted(true);
@@ -33,6 +44,9 @@ export default function Navbar({ settings = defaultSiteSettings }) {
     apiFetch('/brands')
       .then(setBrands)
       .catch(() => setBrands([]));
+    apiFetch('/offers')
+      .then(setOffers)
+      .catch(() => setOffers([]));
   }, []);
 
   useEffect(() => {
@@ -98,46 +112,42 @@ export default function Navbar({ settings = defaultSiteSettings }) {
             <ProductSearchBox className="w-full lg:max-w-md" placeholder="Search products..." />
           </div>
 
-          <div className="flex gap-2 overflow-x-auto pb-0.5 [-ms-overflow-style:none] [scrollbar-width:none] lg:hidden [&::-webkit-scrollbar]:hidden">
-            <button
-              type="button"
-              onClick={() => setShowBrands((value) => !value)}
-              className="shrink-0 rounded-full border border-slate-200 bg-white px-3 py-1.5 text-xs font-black text-slate-700 shadow-sm"
-            >
-              Brands
-            </button>
-            <Link href="/help_support" className="shrink-0 rounded-full border border-slate-200 bg-white px-3 py-1.5 text-xs font-black text-slate-700 shadow-sm">
-              Support
-            </Link>
-            <Link href="/#offers" className="shrink-0 rounded-full border border-rose-100 bg-rose-50 px-3 py-1.5 text-xs font-black text-rose-600 shadow-sm">
-              Offers
-            </Link>
-          </div>
-
-          {showBrands && (
-            <div className="grid max-h-44 gap-1 overflow-auto rounded-xl border border-slate-200 bg-white p-2 shadow-lg lg:hidden">
-              {brands.length ? brands.map((brand) => (
-                <Link
-                  key={brand.id}
-                  href={`/brand/${brand.slug}`}
-                  onClick={() => setShowBrands(false)}
-                  className="rounded-md px-3 py-2 text-sm font-semibold text-slate-700 hover:bg-slate-50 hover:text-rose-600"
-                >
-                  {brand.name}
-                </Link>
-              )) : (
-                <p className="px-3 py-2 text-sm text-slate-500">No active brands</p>
-              )}
-            </div>
-          )}
-
           <div className="hidden flex-wrap items-center gap-2 lg:flex">
             <Link href="/#categories" className="rounded-md px-3 py-2 text-sm font-semibold text-slate-700 hover:bg-white lg:hover:bg-slate-100">
               Categories
             </Link>
-            <Link href="/#offers" className="rounded-md px-3 py-2 text-sm font-semibold text-slate-700 hover:bg-white lg:hover:bg-slate-100">
-              Offers
-            </Link>
+            <div className="relative">
+              <button
+                type="button"
+                onClick={() => setShowOffers((value) => !value)}
+                onMouseEnter={() => setShowOffers(true)}
+                className="w-full rounded-md px-3 py-2 text-left text-sm font-semibold text-slate-700 hover:bg-white lg:w-auto lg:hover:bg-slate-100"
+              >
+                Offers
+              </button>
+              {showOffers && (
+                <div
+                  onMouseLeave={() => setShowOffers(false)}
+                  className="absolute left-0 z-50 mt-2 max-h-96 w-80 overflow-auto rounded-lg border border-slate-200 bg-white p-2 shadow-xl"
+                >
+                  {offers.length ? offers.map((offer) => (
+                    <Link
+                      key={`${offer.offer_id || 'offer'}-${offer.id}`}
+                      href={productHref(offer)}
+                      onClick={() => setShowOffers(false)}
+                      className="block rounded-md px-3 py-2 text-sm hover:bg-rose-50"
+                    >
+                      <span className="block text-xs font-black uppercase tracking-wide text-rose-600">
+                        {offer.badge_text || offer.offer_title || offer.offer_group || 'Offer'}
+                      </span>
+                      <span className="mt-0.5 line-clamp-2 block font-semibold text-slate-800">{offer.name}</span>
+                    </Link>
+                  )) : (
+                    <p className="px-3 py-2 text-sm text-slate-500">No active offers</p>
+                  )}
+                </div>
+              )}
+            </div>
 
             <div className="relative">
               <button
@@ -231,7 +241,7 @@ export default function Navbar({ settings = defaultSiteSettings }) {
       </header>
       <div
         aria-hidden="true"
-        className="h-[108px] sm:h-[110px] lg:h-[73px]"
+        className="h-[64px] sm:h-[66px] lg:h-[73px]"
         style={headerHeight ? { height: `${headerHeight}px` } : undefined}
       />
     </>

@@ -142,7 +142,7 @@ export default function CategoryHeroClient({ initialCategories = [], initialSlid
   return (
     <section id="categories" className="bg-slate-950 text-white">
       <div className="mx-auto grid max-w-[1180px] gap-3 px-2 py-3 sm:px-3 sm:py-4 lg:grid-cols-[250px_1fr]">
-        <aside className="rounded-lg bg-white p-3 text-slate-900 shadow-xl shadow-slate-950/10">
+        <aside className="hidden rounded-lg bg-white p-3 text-slate-900 shadow-xl shadow-slate-950/10 lg:block">
           <div className="mb-3 flex items-center justify-between gap-3">
             <div>
               <h2 className="text-sm font-bold uppercase tracking-wide text-slate-500">Shop by Category</h2>

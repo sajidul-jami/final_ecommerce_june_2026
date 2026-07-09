@@ -59,8 +59,8 @@ export default function Cards({
       ? 'flex w-max max-w-none gap-3 overflow-visible pb-3 will-change-transform'
     : 'grid grid-cols-2 gap-2 sm:gap-3 md:grid-cols-3 lg:grid-cols-4 xl:grid-cols-5';
   const cardClassName = isScroll || isMarquee
-    ? 'group flex min-h-[300px] w-[calc((100vw-2.25rem)/2)] max-w-[178px] shrink-0 flex-col overflow-hidden rounded-lg border border-slate-200 bg-white shadow-sm ring-1 ring-transparent transition hover:-translate-y-0.5 hover:border-rose-200 hover:shadow-lg hover:ring-rose-100 sm:min-h-[320px] sm:w-[210px] sm:max-w-none lg:w-[230px]'
-    : 'group flex min-h-[310px] flex-col overflow-hidden rounded-lg border border-slate-200 bg-white shadow-sm ring-1 ring-transparent transition hover:-translate-y-0.5 hover:border-rose-200 hover:shadow-lg hover:ring-rose-100';
+    ? 'group flex min-h-[260px] w-[calc((100vw-2.25rem)/2)] max-w-[170px] shrink-0 flex-col overflow-hidden rounded-lg border border-slate-200 bg-white shadow-sm ring-1 ring-transparent transition hover:-translate-y-0.5 hover:border-rose-200 hover:shadow-lg hover:ring-rose-100 sm:min-h-[320px] sm:w-[210px] sm:max-w-none lg:w-[230px]'
+    : 'group flex min-h-[270px] flex-col overflow-hidden rounded-lg border border-slate-200 bg-white shadow-sm ring-1 ring-transparent transition hover:-translate-y-0.5 hover:border-rose-200 hover:shadow-lg hover:ring-rose-100 sm:min-h-[310px]';
 
   return (
     <div
@@ -93,59 +93,59 @@ export default function Cards({
                 alt={product.name || 'Product image'}
                 fill
                 sizes="(max-width: 640px) 50vw, (max-width: 1024px) 33vw, 20vw"
-                className="object-contain p-3 transition duration-300 group-hover:scale-105 sm:p-4"
+                className="object-contain p-2 transition duration-300 group-hover:scale-105 sm:p-4"
               />
-              <span className={`absolute left-2 top-2 rounded px-2 py-1 text-[10px] font-bold uppercase tracking-wide text-white ${inStock ? 'bg-emerald-600' : 'bg-slate-500'}`}>
+              <span className={`absolute left-1.5 top-1.5 rounded px-1.5 py-0.5 text-[9px] font-bold uppercase tracking-wide text-white sm:left-2 sm:top-2 sm:px-2 sm:py-1 sm:text-[10px] ${inStock ? 'bg-emerald-600' : 'bg-slate-500'}`}>
                 {inStock ? 'In stock' : 'Sold out'}
               </span>
               {hasOffer && (
-                <span className="absolute right-2 top-2 rounded bg-rose-600 px-2 py-1 text-[10px] font-black uppercase tracking-wide text-white">
+                <span className="absolute right-1.5 top-1.5 rounded bg-rose-600 px-1.5 py-0.5 text-[9px] font-black uppercase tracking-wide text-white sm:right-2 sm:top-2 sm:px-2 sm:py-1 sm:text-[10px]">
                   {discountLabel || 'Offer'}
                 </span>
               )}
             </Link>
 
-            <div className="flex flex-1 flex-col p-3 sm:p-4">
+            <div className="flex flex-1 flex-col p-2 sm:p-4">
               <Link href={productHref(product)} className="flex-1">
-                <p className="line-clamp-2 min-h-[40px] text-sm font-bold leading-5 text-slate-950">
+                <p className="line-clamp-2 min-h-[36px] text-[13px] font-bold leading-[18px] text-slate-950 sm:min-h-[40px] sm:text-sm sm:leading-5">
                   {product.name}
                 </p>
-                <p className="mt-1 truncate text-xs font-medium text-slate-500">{product.category_name || 'Tech product'}</p>
-                <div className="mt-2 flex flex-wrap items-center gap-2 text-[11px] font-bold text-slate-500">
+                <p className="mt-1 hidden truncate text-xs font-medium text-slate-500 sm:block">{product.category_name || 'Tech product'}</p>
+                <div className="mt-1.5 flex flex-wrap items-center gap-1.5 text-[10px] font-bold text-slate-500 sm:mt-2 sm:gap-2 sm:text-[11px]">
                   <span>{Number(product.sold_count || 0)} sold</span>
                   {Number(product.review_count || 0) > 0 && (
                     <StarRating rating={product.avg_rating} size="text-xs" showValue count={product.review_count} />
                   )}
                 </div>
                 {hasOffer ? (
-                  <div className="mt-2">
+                  <div className="mt-1.5 sm:mt-2">
                     <div className="flex flex-wrap items-baseline gap-2">
-                      <p className="text-base font-black text-rose-600 sm:text-lg">{taka.format(displayPrice)}</p>
-                      <p className="text-sm font-semibold text-slate-400 line-through">{taka.format(regularPrice)}</p>
+                      <p className="text-sm font-black text-rose-600 sm:text-lg">{taka.format(displayPrice)}</p>
+                      <p className="text-xs font-semibold text-slate-400 line-through sm:text-sm">{taka.format(regularPrice)}</p>
                     </div>
                     {Number(product.save_amount || 0) > 0 && (
-                      <p className="mt-0.5 text-xs font-semibold text-emerald-600">
+                      <p className="mt-0.5 text-[10px] font-semibold text-emerald-600 sm:text-xs">
                         Save {taka.format(Number(product.save_amount || 0))}
                       </p>
                     )}
                   </div>
                 ) : (
-                  <p className="mt-2 text-base font-black text-rose-600 sm:text-lg">{taka.format(displayPrice)}</p>
+                  <p className="mt-1.5 text-sm font-black text-rose-600 sm:mt-2 sm:text-lg">{taka.format(displayPrice)}</p>
                 )}
               </Link>
 
-              <div className="mt-3 grid grid-cols-2 gap-2">
+              <div className="mt-2 grid grid-cols-2 gap-1.5 sm:mt-3 sm:gap-2">
                 <button
                   type="button"
                   disabled={!inStock}
                   aria-label="Add to cart"
                   onClick={() => addToCart({ ...product, stock_quantity: Number(product.quantity || 0) })}
-                  className="flex min-h-9 items-center justify-center rounded-md border border-slate-300 px-2 py-2 text-xs font-bold text-slate-800 transition hover:border-slate-950 hover:bg-slate-50 disabled:cursor-not-allowed disabled:opacity-50"
+                  className="flex min-h-8 items-center justify-center rounded-md border border-slate-300 px-2 py-1.5 text-xs font-bold text-slate-800 transition hover:border-slate-950 hover:bg-slate-50 disabled:cursor-not-allowed disabled:opacity-50 sm:min-h-9 sm:py-2"
                 >
                   <svg
                     aria-hidden="true"
                     viewBox="0 0 24 24"
-                    className="h-5 w-5 sm:hidden"
+                    className="h-4 w-4 sm:hidden"
                     fill="none"
                     stroke="currentColor"
                     strokeLinecap="round"
@@ -162,7 +162,7 @@ export default function Cards({
                   type="button"
                   disabled={!inStock}
                   onClick={() => buyNow(product)}
-                  className="rounded-md bg-rose-600 px-2 py-2 text-xs font-black text-white transition hover:bg-slate-950 disabled:cursor-not-allowed disabled:opacity-50"
+                  className="rounded-md bg-rose-600 px-2 py-1.5 text-xs font-black text-white transition hover:bg-slate-950 disabled:cursor-not-allowed disabled:opacity-50 sm:py-2"
                 >
                   Buy Now
                 </button>

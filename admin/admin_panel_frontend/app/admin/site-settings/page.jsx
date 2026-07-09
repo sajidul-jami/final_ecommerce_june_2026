@@ -1,8 +1,8 @@
 'use client'
 
-import { useEffect, useState } from 'react'
+import { useEffect, useRef, useState } from 'react'
 import Image from 'next/image'
-import { Save, Settings, Upload } from 'lucide-react'
+import { AlertCircle, CheckCircle2, LoaderCircle, Save, Settings, Upload } from 'lucide-react'
 import { getSiteSettings, saveSiteSettings } from '@/services/contentService'
 import { PRODUCT_IMAGE_BASE_URL } from '@/lib/apiConfig'
 import { uploadSiteAsset } from '@/lib/upload'
@@ -75,6 +75,7 @@ export default function SiteSettingsPage() {
   const [saving, setSaving] = useState(false)
   const [message, setMessage] = useState('')
   const [messageType, setMessageType] = useState('success')
+  const messageRef = useRef(null)
 
   useEffect(() => {
     getSiteSettings()
@@ -109,12 +110,15 @@ export default function SiteSettingsPage() {
       setSettings({ ...emptySettings, ...payload })
       setFiles({})
       setMessageType('success')
-      setMessage('Site settings saved.')
+      setMessage('Saved successfully. Site settings are updated.')
     } catch (error) {
       setMessageType('error')
-      setMessage(error.message || 'Unable to save site settings')
+      setMessage(`Save failed: ${error.message || 'Unable to save site settings'}`)
     } finally {
       setSaving(false)
+      setTimeout(() => {
+        messageRef.current?.scrollIntoView({ behavior: 'smooth', block: 'center' })
+      }, 50)
     }
   }
 
@@ -129,14 +133,43 @@ export default function SiteSettingsPage() {
           <Settings size={18} className="text-emerald-600" />
           <h2 className="text-xl font-semibold">Site Settings</h2>
         </div>
+        {(saving || message) && (
+          <div
+            ref={messageRef}
+            role="status"
+            aria-live="polite"
+            className={`m-4 flex items-start gap-3 rounded-md border p-4 text-sm font-semibold ${
+            saving
+              ? 'border-blue-200 bg-blue-50 text-blue-800'
+              : messageType === 'error'
+                ? 'border-red-200 bg-red-50 text-red-700'
+                : 'border-emerald-200 bg-emerald-50 text-emerald-800'
+          }`}
+          >
+            {saving ? (
+              <LoaderCircle size={20} className="mt-0.5 shrink-0 animate-spin" />
+            ) : messageType === 'error' ? (
+              <AlertCircle size={20} className="mt-0.5 shrink-0" />
+            ) : (
+              <CheckCircle2 size={20} className="mt-0.5 shrink-0" />
+            )}
+            <div>
+              <p className="text-base">
+                {saving ? 'Saving site settings...' : messageType === 'error' ? 'Site settings not saved' : 'Site settings saved'}
+              </p>
+              <p className="mt-1 font-medium">{saving ? 'Please wait. Image upload and settings update are running.' : message}</p>
+            </div>
+          </div>
+        )}
+
         {message && (
-          <p className={`m-4 rounded-md p-3 text-sm font-semibold ${
+          <div className={`mx-4 mb-4 rounded-md p-3 text-sm font-semibold ${
             messageType === 'error'
               ? 'bg-red-50 text-red-700'
               : 'bg-emerald-50 text-emerald-800'
           }`}>
             {message}
-          </p>
+          </div>
         )}
 
         <div className="grid gap-4 p-4 md:grid-cols-3">
@@ -203,10 +236,27 @@ export default function SiteSettingsPage() {
             </label>
           ))}
         </div>
-        <button disabled={saving} className="mt-5 inline-flex items-center gap-2 rounded-md bg-slate-950 px-5 py-3 font-semibold text-white hover:bg-rose-600 disabled:opacity-60">
-          <Save size={18} />
-          {saving ? 'Saving...' : 'Save Site Settings'}
-        </button>
+        <div className="sticky bottom-0 -mx-4 mt-5 border-t border-slate-200 bg-white/95 p-4 backdrop-blur">
+          <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
+            <div
+              className={`min-h-6 text-sm font-semibold ${
+                saving
+                  ? 'text-blue-700'
+                  : message
+                    ? messageType === 'error'
+                      ? 'text-red-700'
+                      : 'text-emerald-700'
+                    : 'text-slate-500'
+              }`}
+            >
+              {saving ? 'Saving now...' : message || 'No recent save action.'}
+            </div>
+            <button disabled={saving} className="inline-flex items-center justify-center gap-2 rounded-md bg-slate-950 px-5 py-3 font-semibold text-white hover:bg-rose-600 disabled:opacity-60">
+              {saving ? <LoaderCircle size={18} className="animate-spin" /> : <Save size={18} />}
+              {saving ? 'Saving...' : 'Save Site Settings'}
+            </button>
+          </div>
+        </div>
       </section>
     </form>
   )

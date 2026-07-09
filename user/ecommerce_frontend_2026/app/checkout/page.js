@@ -1,6 +1,6 @@
 'use client';
 
-import { useEffect, useMemo, useState } from 'react';
+import { useEffect, useMemo, useRef, useState } from 'react';
 import Link from 'next/link';
 import { useRouter } from 'next/navigation';
 import { useUser } from '../context/UserContext';
@@ -29,6 +29,15 @@ export default function CheckoutPage() {
   const [submitting, setSubmitting] = useState(false);
   const [error, setError] = useState('');
   const [successOrderId, setSuccessOrderId] = useState('');
+  const formRef = useRef(null);
+
+  const focusCheckoutField = (name) => {
+    setTimeout(() => {
+      const field = formRef.current?.querySelector(`[name="${name}"]`);
+      field?.scrollIntoView({ behavior: 'smooth', block: 'center' });
+      field?.focus({ preventScroll: true });
+    }, 50);
+  };
 
   useEffect(() => {
     // Old flow kept for reference. Checkout now supports guest orders.
@@ -124,8 +133,17 @@ export default function CheckoutPage() {
       return;
     }
 
-    if (!form.full_name || !form.phone_number || !form.address || !form.city || !deliveryZone) {
+    const missingField = [
+      ['full_name', form.full_name],
+      ['phone_number', form.phone_number],
+      ['address', form.address],
+      ['city', form.city],
+      ['delivery_zone', deliveryZone],
+    ].find(([, value]) => !String(value || '').trim())?.[0];
+
+    if (missingField) {
       setError('Name, phone, address, city and delivery area are required.');
+      focusCheckoutField(missingField);
       return;
     }
 
@@ -185,8 +203,14 @@ export default function CheckoutPage() {
   // if (!user) return null;
 
   return (
-    <main className="min-h-screen bg-slate-50 px-3 py-6 text-slate-950 sm:px-5">
-      <form onSubmit={handleSubmit} className="mx-auto grid max-w-6xl gap-5 lg:grid-cols-[1fr_360px]">
+    <main className="min-h-screen bg-slate-50 px-3 pb-32 pt-6 text-slate-950 sm:px-5 lg:pb-6">
+      <form
+        id="checkout-form"
+        ref={formRef}
+        noValidate
+        onSubmit={handleSubmit}
+        className="mx-auto grid max-w-6xl gap-5 lg:grid-cols-[1fr_360px]"
+      >
         <section className="rounded-lg bg-white p-5 shadow-sm">
           <p className="text-sm font-semibold uppercase tracking-wide text-rose-600">Final step</p>
           <h1 className="text-3xl font-black">Checkout</h1>
@@ -243,7 +267,6 @@ export default function CheckoutPage() {
                 value={form.phone_number}
                 onChange={handleChange}
                 className="mt-1 w-full rounded-md border border-slate-300 px-3 py-2 text-slate-950 outline-none focus:border-slate-950"
-                required
               />
             </label>
             <label className="text-sm font-semibold text-slate-700 sm:col-span-2">
@@ -253,7 +276,6 @@ export default function CheckoutPage() {
                 value={form.address}
                 onChange={handleChange}
                 className="mt-1 min-h-24 w-full rounded-md border border-slate-300 px-3 py-2 text-slate-950 outline-none focus:border-slate-950"
-                required
               />
             </label>
             <label className="text-sm font-semibold text-slate-700">
@@ -273,7 +295,6 @@ export default function CheckoutPage() {
                 value={form.city}
                 onChange={handleChange}
                 className="mt-1 w-full rounded-md border border-slate-300 px-3 py-2 text-slate-950 outline-none focus:border-slate-950"
-                required
               />
             </label>
             <label className="text-sm font-semibold text-slate-700">
@@ -288,10 +309,10 @@ export default function CheckoutPage() {
             <label className="text-sm font-semibold text-slate-700">
               Delivery area <span className="text-rose-600">*</span>
               <select
+                name="delivery_zone"
                 value={deliveryZone}
                 onChange={(event) => setDeliveryZone(event.target.value)}
                 className="mt-1 w-full rounded-md border border-slate-300 bg-white px-3 py-2 text-slate-950 outline-none focus:border-slate-950"
-                required
               >
                 <option value="">Select delivery area</option>
                 <option value="Inside Dhaka">Inside Dhaka - {taka.format(Number(settings.inside_dhaka_delivery_charge || 80))}</option>
@@ -361,12 +382,29 @@ export default function CheckoutPage() {
           <button
             type="submit"
             disabled={submitting || !products.length}
-            className="mt-5 w-full rounded-md bg-emerald-600 px-4 py-3 font-bold text-white transition hover:bg-emerald-700 disabled:cursor-not-allowed disabled:opacity-60"
+            className="mt-5 hidden w-full rounded-md bg-emerald-600 px-4 py-3 font-bold text-white transition hover:bg-emerald-700 disabled:cursor-not-allowed disabled:opacity-60 lg:block"
           >
             {submitting ? 'Placing order...' : user ? 'Confirm Order' : 'Confirm Guest Order'}
           </button>
         </aside>
       </form>
+
+      <div className="fixed bottom-[4.8rem] left-0 right-0 z-40 border-t border-slate-200 bg-white/95 p-3 shadow-2xl backdrop-blur lg:hidden">
+        <div className="mx-auto flex max-w-md items-center gap-3">
+          <div className="min-w-0 flex-1">
+            <p className="text-xs font-bold uppercase text-slate-500">Total</p>
+            <p className="text-lg font-black text-slate-950">{taka.format(total)}</p>
+          </div>
+          <button
+            type="submit"
+            form="checkout-form"
+            disabled={submitting || !products.length}
+            className="rounded-md bg-emerald-600 px-5 py-3 text-sm font-black text-white transition hover:bg-emerald-700 disabled:cursor-not-allowed disabled:opacity-60"
+          >
+            {submitting ? 'Placing...' : 'Confirm Order'}
+          </button>
+        </div>
+      </div>
 
       {successOrderId && (
         <div className="fixed inset-0 z-[90] flex items-end justify-center bg-slate-950/60 px-3 py-4 backdrop-blur-sm sm:items-center">

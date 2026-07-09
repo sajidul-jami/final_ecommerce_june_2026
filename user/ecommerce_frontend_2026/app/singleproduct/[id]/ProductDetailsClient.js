@@ -143,7 +143,7 @@ export default function ProductDetailsClient({ product }) {
   };
 
   return (
-    <main className="min-h-screen bg-slate-50 px-1.5 pb-24 pt-3 text-slate-950 sm:px-2 lg:pb-6">
+    <main className="min-h-screen bg-slate-50 px-1.5 pb-40 pt-3 text-slate-950 sm:px-2 lg:pb-6">
       <div className="mx-auto max-w-[1260px]">
         <section className="grid gap-3 rounded-md bg-white p-2 shadow-sm md:grid-cols-[minmax(430px,48%)_1fr] lg:gap-5 lg:p-3 xl:grid-cols-[minmax(500px,48%)_1fr]">
           <ProductGallery product={product} />
@@ -232,7 +232,7 @@ export default function ProductDetailsClient({ product }) {
               )}
             </div>
 
-            <div className="fixed bottom-0 left-0 right-0 z-40 grid grid-cols-2 gap-2 border-t border-slate-200 bg-white/95 p-3 shadow-2xl backdrop-blur sm:static sm:mt-6 sm:flex sm:border-0 sm:bg-transparent sm:p-0 sm:shadow-none">
+            <div className="fixed bottom-[4.8rem] left-0 right-0 z-40 grid grid-cols-2 gap-2 border-t border-slate-200 bg-white/95 p-3 shadow-2xl backdrop-blur lg:static lg:mt-6 lg:flex lg:border-0 lg:bg-transparent lg:p-0 lg:shadow-none">
               <button
                 type="button"
                 disabled={!inStock}

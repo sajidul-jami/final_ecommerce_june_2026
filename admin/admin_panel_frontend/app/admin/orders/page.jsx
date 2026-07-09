@@ -1,8 +1,9 @@
 'use client'
 
-import { useEffect, useMemo, useState } from 'react'
+import { Suspense, useEffect, useMemo, useState } from 'react'
 import Link from 'next/link'
-import { Eye, RefreshCw, Search, Trash2 } from 'lucide-react'
+import { useSearchParams } from 'next/navigation'
+import { Eye, Plus, RefreshCw, Search, Trash2 } from 'lucide-react'
 import { deleteOrder, getOrders, updateOrderStatus } from '@/services/orderService'
 
 const statuses = ['All', 'Pending', 'Processing', 'Completed', 'Cancelled']
@@ -21,7 +22,8 @@ const money = (value) =>
     maximumFractionDigits: 0
   }).format(Number(value || 0))
 
-export default function OrdersPage() {
+function OrdersContent() {
+  const searchParams = useSearchParams()
   const [orders, setOrders] = useState([])
   const [query, setQuery] = useState('')
   const [status, setStatus] = useState('All')
@@ -39,6 +41,13 @@ export default function OrdersPage() {
       setLoading(false)
     }
   }
+
+  useEffect(() => {
+    const requestedStatus = searchParams.get('status')
+    if (requestedStatus && statuses.includes(requestedStatus)) {
+      setStatus(requestedStatus)
+    }
+  }, [searchParams])
 
   useEffect(() => {
     const loadInitialOrders = async () => {
@@ -101,14 +110,23 @@ export default function OrdersPage() {
           <h2 className="text-xl font-semibold text-slate-950 sm:text-2xl">Order management</h2>
           <p className="mt-1 text-sm text-slate-500">Track fulfillment, payments, and customer order status.</p>
         </div>
-        <button
-          type="button"
-          onClick={loadOrders}
-          className="inline-flex items-center justify-center gap-2 rounded-md border border-slate-200 bg-white px-3 py-2 text-sm font-semibold text-slate-700 shadow-sm transition hover:bg-slate-50"
-        >
-          <RefreshCw size={16} />
-          Refresh
-        </button>
+        <div className="flex flex-wrap gap-2">
+          <Link
+            href="/admin/orders/create"
+            className="inline-flex items-center justify-center gap-2 rounded-md bg-slate-950 px-3 py-2 text-sm font-semibold text-white shadow-sm transition hover:bg-emerald-700"
+          >
+            <Plus size={16} />
+            Create order
+          </Link>
+          <button
+            type="button"
+            onClick={loadOrders}
+            className="inline-flex items-center justify-center gap-2 rounded-md border border-slate-200 bg-white px-3 py-2 text-sm font-semibold text-slate-700 shadow-sm transition hover:bg-slate-50"
+          >
+            <RefreshCw size={16} />
+            Refresh
+          </button>
+        </div>
       </div>
 
       {error && <div className="rounded-md border border-rose-200 bg-rose-50 p-4 text-sm text-rose-700">{error}</div>}
@@ -205,5 +223,13 @@ export default function OrdersPage() {
         </div>
       </div>
     </div>
+  )
+}
+
+export default function OrdersPage() {
+  return (
+    <Suspense fallback={<div className="rounded-md border border-slate-200 bg-white p-6 text-sm text-slate-500">Loading orders...</div>}>
+      <OrdersContent />
+    </Suspense>
   )
 }

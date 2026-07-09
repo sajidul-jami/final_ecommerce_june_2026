@@ -78,6 +78,32 @@ const siteSettingsFields = [
     'outside_dhaka_delivery_charge'
 ]
 
+const siteSettingsColumnDefinitions = {
+    website_name: 'VARCHAR(150) NULL',
+    website_logo: 'VARCHAR(500) NULL',
+    footer_logo: 'VARCHAR(500) NULL',
+    favicon: 'VARCHAR(500) NULL',
+    website_description: 'TEXT NULL',
+    footer_title: 'VARCHAR(150) NULL',
+    footer_description: 'TEXT NULL',
+    footer_quick_links: 'TEXT NULL',
+    contact_email: 'VARCHAR(150) NULL',
+    phone: 'VARCHAR(50) NULL',
+    whatsapp: 'VARCHAR(50) NULL',
+    office_address: 'TEXT NULL',
+    google_map: 'TEXT NULL',
+    support_email: 'VARCHAR(150) NULL',
+    footer_copyright: 'VARCHAR(255) NULL',
+    meta_title: 'VARCHAR(180) NULL',
+    meta_description: 'VARCHAR(500) NULL',
+    meta_keywords: 'VARCHAR(500) NULL',
+    google_analytics: 'TEXT NULL',
+    google_tag_manager: 'TEXT NULL',
+    facebook_pixel: 'TEXT NULL',
+    inside_dhaka_delivery_charge: 'DECIMAL(10,2) DEFAULT 80',
+    outside_dhaka_delivery_charge: 'DECIMAL(10,2) DEFAULT 120'
+}
+
 const normalizeSiteSettingValue = (field, value) => {
     if (field === 'inside_dhaka_delivery_charge') {
         const amount = Number(value)
@@ -90,6 +116,29 @@ const normalizeSiteSettingValue = (field, value) => {
     }
 
     return value === undefined || value === null ? '' : String(value)
+}
+
+const ensureSiteSettingsSchema = async () => {
+    await pool.query(`
+        CREATE TABLE IF NOT EXISTS site_settings (
+            id TINYINT PRIMARY KEY DEFAULT 1,
+            updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP
+        )
+    `)
+
+    const [columns] = await pool.query(
+        `SELECT COLUMN_NAME
+         FROM information_schema.COLUMNS
+         WHERE TABLE_SCHEMA = DATABASE()
+           AND TABLE_NAME = 'site_settings'`
+    )
+    const existingColumns = new Set(columns.map((column) => column.COLUMN_NAME))
+
+    for (const field of siteSettingsFields) {
+        if (!existingColumns.has(field)) {
+            await pool.query(`ALTER TABLE site_settings ADD COLUMN ${field} ${siteSettingsColumnDefinitions[field]}`)
+        }
+    }
 }
 
 const ensureProductsNotInActiveOffer = async (productIds, excludeOfferId = null) => {
@@ -445,11 +494,13 @@ router.delete('/social-links/:id', optionalWrite(async (req) => {
 }))
 
 router.get('/site-settings', optionalList(async () => {
+    await ensureSiteSettingsSchema()
     const [rows] = await pool.query('SELECT * FROM site_settings WHERE id = 1 LIMIT 1')
     return rows[0] || {}
 }))
 
 router.put('/site-settings', optionalWrite(async (req) => {
+    await ensureSiteSettingsSchema()
     const values = siteSettingsFields.map((field) => normalizeSiteSettingValue(field, req.body[field]))
     const updateSql = siteSettingsFields.map((field) => `${field} = VALUES(${field})`).join(', ')
 
