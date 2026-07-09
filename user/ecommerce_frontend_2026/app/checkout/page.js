@@ -389,7 +389,7 @@ export default function CheckoutPage() {
         </aside>
       </form>
 
-      <div className="fixed bottom-[4.8rem] left-0 right-0 z-40 border-t border-slate-200 bg-white/95 p-3 shadow-2xl backdrop-blur lg:hidden">
+      <div className="fixed bottom-[4.25rem] left-0 right-0 z-40 border-t border-slate-200 bg-white/95 px-3 py-2 shadow-2xl backdrop-blur lg:hidden">
         <div className="mx-auto flex max-w-md items-center gap-3">
           <div className="min-w-0 flex-1">
             <p className="text-xs font-bold uppercase text-slate-500">Total</p>

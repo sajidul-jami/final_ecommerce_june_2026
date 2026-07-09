@@ -26,6 +26,7 @@ type NotificationState = {
   summary: {
     pendingOrders: number
     openTickets: number
+    openMessages: number
     pendingReviews: number
   }
 }
@@ -38,7 +39,7 @@ export default function Navbar({ onMenuClick }: NavbarProps) {
   const [notifications, setNotifications] = useState<NotificationState>({
     count: 0,
     items: [],
-    summary: { pendingOrders: 0, openTickets: 0, pendingReviews: 0 }
+    summary: { pendingOrders: 0, openTickets: 0, openMessages: 0, pendingReviews: 0 }
   })
   const notificationRef = useRef<HTMLDivElement | null>(null)
 
@@ -54,7 +55,7 @@ export default function Navbar({ onMenuClick }: NavbarProps) {
           setNotifications({
             count: 0,
             items: [],
-            summary: { pendingOrders: 0, openTickets: 0, pendingReviews: 0 }
+            summary: { pendingOrders: 0, openTickets: 0, openMessages: 0, pendingReviews: 0 }
           })
         }
       })
@@ -82,6 +83,8 @@ export default function Navbar({ onMenuClick }: NavbarProps) {
     const quickActions = [
       { href: "/admin/orders?status=Pending", label: "Pending Orders", keywords: "pending order new order" },
       { href: "/admin/support", label: "Open Support Tickets", keywords: "support ticket help customer" },
+      { href: "/admin/messages", label: "Customer Messages", keywords: "message inbox reply customer" },
+      { href: "/admin/visitors", label: "Visitor Analytics", keywords: "visitor source traffic ip analytics" },
       { href: "/admin/reviews", label: "Pending Reviews", keywords: "review rating approve" },
       { href: "/admin/site-settings", label: "Site Settings", keywords: "seo logo footer website delivery" }
     ]
@@ -158,7 +161,7 @@ export default function Navbar({ onMenuClick }: NavbarProps) {
           >
             <Plus size={18} />
           </Link>
-          <div ref={notificationRef} className="relative hidden sm:block">
+          <div ref={notificationRef} className="relative">
             <button
               type="button"
               onClick={() => setNotificationsOpen((open) => !open)}
@@ -175,7 +178,7 @@ export default function Navbar({ onMenuClick }: NavbarProps) {
             </button>
 
             {notificationsOpen && (
-              <div className="absolute right-0 top-12 z-50 w-80 overflow-hidden rounded-md border border-slate-200 bg-white shadow-xl sm:w-96">
+              <div className="fixed left-2 right-2 top-16 z-50 overflow-hidden rounded-md border border-slate-200 bg-white shadow-xl sm:absolute sm:left-auto sm:right-0 sm:top-12 sm:w-96">
                 <div className="border-b border-slate-100 px-4 py-3">
                   <div className="flex items-center justify-between gap-3">
                     <p className="font-semibold text-slate-950">Notifications</p>
@@ -184,7 +187,7 @@ export default function Navbar({ onMenuClick }: NavbarProps) {
                     </Link>
                   </div>
                   <p className="mt-1 text-xs text-slate-500">
-                    {notifications.summary.pendingOrders} orders, {notifications.summary.openTickets} support, {notifications.summary.pendingReviews} reviews need attention.
+                    {notifications.summary.pendingOrders} orders, {notifications.summary.openTickets} support, {notifications.summary.openMessages} messages, {notifications.summary.pendingReviews} reviews need attention.
                   </p>
                 </div>
 
@@ -219,7 +222,7 @@ export default function Navbar({ onMenuClick }: NavbarProps) {
               </div>
             )}
           </div>
-          <div className="flex items-center gap-2 rounded-md border border-slate-200 bg-white px-2 py-1.5">
+          <div className="hidden items-center gap-2 rounded-md border border-slate-200 bg-white px-2 py-1.5 sm:flex">
             <div className="flex h-8 w-8 items-center justify-center rounded-md bg-slate-100 text-slate-700">
               <User size={17} />
             </div>

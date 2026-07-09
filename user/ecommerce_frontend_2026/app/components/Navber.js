@@ -108,75 +108,88 @@ export default function Navbar({ settings = defaultSiteSettings }) {
             </div>
           </div>
 
-          <div className="hidden rounded-xl bg-gradient-to-r from-slate-50 to-white p-1 shadow-sm ring-1 ring-slate-200 lg:block lg:bg-none lg:p-0 lg:shadow-none lg:ring-0">
-            <ProductSearchBox className="w-full lg:max-w-md" placeholder="Search products..." />
+          <div className="hidden min-w-[360px] flex-1 rounded-2xl bg-gradient-to-r from-slate-50 to-white p-1.5 shadow-sm ring-1 ring-slate-200 lg:block xl:min-w-[460px]">
+            <ProductSearchBox
+              className="w-full"
+              inputClassName="py-3 text-[15px]"
+              buttonClassName="bg-slate-950 px-6 font-black hover:bg-rose-600"
+              placeholder="Search products, brands, categories..."
+            />
           </div>
 
           <div className="hidden flex-wrap items-center gap-2 lg:flex">
             <Link href="/#categories" className="rounded-md px-3 py-2 text-sm font-semibold text-slate-700 hover:bg-white lg:hover:bg-slate-100">
               Categories
             </Link>
-            <div className="relative">
+            <div
+              className="relative"
+              onMouseEnter={() => setShowOffers(true)}
+              onMouseLeave={() => setShowOffers(false)}
+            >
               <button
                 type="button"
                 onClick={() => setShowOffers((value) => !value)}
-                onMouseEnter={() => setShowOffers(true)}
                 className="w-full rounded-md px-3 py-2 text-left text-sm font-semibold text-slate-700 hover:bg-white lg:w-auto lg:hover:bg-slate-100"
               >
                 Offers
               </button>
               {showOffers && (
                 <div
-                  onMouseLeave={() => setShowOffers(false)}
-                  className="absolute left-0 z-50 mt-2 max-h-96 w-80 overflow-auto rounded-lg border border-slate-200 bg-white p-2 shadow-xl"
+                  className="absolute left-0 z-50 pt-2"
                 >
-                  {offers.length ? offers.map((offer) => (
-                    <Link
-                      key={`${offer.offer_id || 'offer'}-${offer.id}`}
-                      href={productHref(offer)}
-                      onClick={() => setShowOffers(false)}
-                      className="block rounded-md px-3 py-2 text-sm hover:bg-rose-50"
-                    >
-                      <span className="block text-xs font-black uppercase tracking-wide text-rose-600">
-                        {offer.badge_text || offer.offer_title || offer.offer_group || 'Offer'}
-                      </span>
-                      <span className="mt-0.5 line-clamp-2 block font-semibold text-slate-800">{offer.name}</span>
-                    </Link>
-                  )) : (
-                    <p className="px-3 py-2 text-sm text-slate-500">No active offers</p>
-                  )}
+                  <div className="max-h-96 w-80 overflow-auto rounded-lg border border-slate-200 bg-white p-2 shadow-xl">
+                    {offers.length ? offers.map((offer) => (
+                      <Link
+                        key={`${offer.offer_id || 'offer'}-${offer.id}`}
+                        href={productHref(offer)}
+                        onClick={() => setShowOffers(false)}
+                        className="block rounded-md px-3 py-2 text-sm hover:bg-rose-50"
+                      >
+                        <span className="block text-xs font-black uppercase tracking-wide text-rose-600">
+                          {offer.badge_text || offer.offer_title || offer.offer_group || 'Offer'}
+                        </span>
+                        <span className="mt-0.5 line-clamp-2 block font-semibold text-slate-800">{offer.name}</span>
+                      </Link>
+                    )) : (
+                      <p className="px-3 py-2 text-sm text-slate-500">No active offers</p>
+                    )}
+                  </div>
                 </div>
               )}
             </div>
 
-            <div className="relative">
+            <div
+              className="relative"
+              onMouseEnter={() => setShowBrands(true)}
+              onMouseLeave={() => setShowBrands(false)}
+            >
               <button
                 type="button"
                 onClick={() => setShowBrands((value) => !value)}
-                onMouseEnter={() => setShowBrands(true)}
                 className="w-full rounded-md px-3 py-2 text-left text-sm font-semibold text-slate-700 hover:bg-white lg:w-auto lg:hover:bg-slate-100"
               >
                 Brands
               </button>
               {showBrands && (
                 <div
-                  onMouseLeave={() => setShowBrands(false)}
-                  className="absolute left-0 z-50 mt-2 max-h-72 w-56 overflow-auto rounded-lg border border-slate-200 bg-white py-2 shadow-xl"
+                  className="absolute left-0 z-50 pt-2"
                 >
-                  {brands.length ? brands.map((brand) => (
-                    <Link
-                      key={brand.id}
-                      href={`/brand/${brand.slug}`}
-                      onClick={() => {
-                        setShowBrands(false);
-                      }}
-                      className="block px-4 py-2 text-sm font-semibold text-slate-700 hover:bg-slate-100 hover:text-rose-600"
-                    >
-                      {brand.name}
-                    </Link>
-                  )) : (
-                    <p className="px-4 py-2 text-sm text-slate-500">No active brands</p>
-                  )}
+                  <div className="max-h-72 w-56 overflow-auto rounded-lg border border-slate-200 bg-white py-2 shadow-xl">
+                    {brands.length ? brands.map((brand) => (
+                      <Link
+                        key={brand.id}
+                        href={`/brand/${brand.slug}`}
+                        onClick={() => {
+                          setShowBrands(false);
+                        }}
+                        className="block px-4 py-2 text-sm font-semibold text-slate-700 hover:bg-slate-100 hover:text-rose-600"
+                      >
+                        {brand.name}
+                      </Link>
+                    )) : (
+                      <p className="px-4 py-2 text-sm text-slate-500">No active brands</p>
+                    )}
+                  </div>
                 </div>
               )}
             </div>

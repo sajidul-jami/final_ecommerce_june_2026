@@ -38,6 +38,17 @@ export const updateReview = (id, data) => apiRequest(`/content/reviews/${id}`, {
   body: data
 })
 
+export const getCustomerMessages = () => list('customer-messages')
+export const updateCustomerMessage = (id, data) => apiRequest(`/content/customer-messages/${id}`, {
+  method: 'PUT',
+  body: data
+})
+
+export const getVisitorAnalytics = async () => {
+  const res = await apiRequest('/content/visitor-analytics')
+  return res.data || { sessions: [], pages: [], sources: [] }
+}
+
 export const getSocialLinks = () => list('social-links')
 export const saveSocialLink = (data, id) => apiRequest(`/content/social-links${id ? `/${id}` : ''}`, {
   method: id ? 'PUT' : 'POST',

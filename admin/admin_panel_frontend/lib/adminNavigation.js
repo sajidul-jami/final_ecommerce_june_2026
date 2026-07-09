@@ -1,9 +1,11 @@
 import {
   BarChart3,
   BadgePercent,
+  Activity,
   Images,
   LayoutDashboard,
   LifeBuoy,
+  MessageSquare,
   Package,
   Share2,
   ShoppingBag,
@@ -23,6 +25,8 @@ export const adminNavigation = [
   { href: '/admin/sliders', label: 'Sliders', icon: Images },
   { href: '/admin/users', label: 'Customers', icon: Users },
   { href: '/admin/support', label: 'Support', icon: LifeBuoy },
+  { href: '/admin/messages', label: 'Messages', icon: MessageSquare },
+  { href: '/admin/visitors', label: 'Visitors', icon: Activity },
   { href: '/admin/reviews', label: 'Reviews', icon: Star },
   { href: '/admin/social-links', label: 'Social Links', icon: Share2 },
   { href: '/admin/site-settings', label: 'Site Settings', icon: Settings },
@@ -39,6 +43,8 @@ export const getAdminPageTitle = (pathname = '') => {
   if (pathname.startsWith('/admin/sliders')) return 'Sliders'
   if (pathname.startsWith('/admin/users')) return 'Customers'
   if (pathname.startsWith('/admin/support')) return 'Support'
+  if (pathname.startsWith('/admin/messages')) return 'Messages'
+  if (pathname.startsWith('/admin/visitors')) return 'Visitors'
   if (pathname.startsWith('/admin/reviews')) return 'Reviews'
   if (pathname.startsWith('/admin/social-links')) return 'Social Links'
   if (pathname.startsWith('/admin/site-settings')) return 'Site Settings'

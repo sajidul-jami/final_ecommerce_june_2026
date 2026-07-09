@@ -1,7 +1,7 @@
 docker build --no-cache -t user-ecommerce-backend-image .
 docker run -d \
   --name user-ecommerce-backend-container \
-  -e DB_HOST=192.168.1.99 \
+  -e DB_HOST=192.168.1.146 \
   -e DB_USER=ecommerce_app \
   -e DB_PASSWORD=change_me_app_password \
   -e DB_NAME=ecommerce \

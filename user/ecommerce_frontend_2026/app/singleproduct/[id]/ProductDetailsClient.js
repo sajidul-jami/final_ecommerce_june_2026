@@ -232,7 +232,7 @@ export default function ProductDetailsClient({ product }) {
               )}
             </div>
 
-            <div className="fixed bottom-[4.8rem] left-0 right-0 z-40 grid grid-cols-2 gap-2 border-t border-slate-200 bg-white/95 p-3 shadow-2xl backdrop-blur lg:static lg:mt-6 lg:flex lg:border-0 lg:bg-transparent lg:p-0 lg:shadow-none">
+            <div className="fixed bottom-[4.25rem] left-0 right-0 z-40 grid grid-cols-2 gap-2 border-t border-slate-200 bg-white/95 px-3 py-2 shadow-2xl backdrop-blur lg:static lg:mt-6 lg:flex lg:border-0 lg:bg-transparent lg:p-0 lg:shadow-none">
               <button
                 type="button"
                 disabled={!inStock}

@@ -141,6 +141,60 @@ const ensureSiteSettingsSchema = async () => {
     }
 }
 
+const ensureCustomerMessagesTable = async () => {
+    await pool.query(`
+        CREATE TABLE IF NOT EXISTS customer_messages (
+            id INT AUTO_INCREMENT PRIMARY KEY,
+            user_id INT NULL,
+            name VARCHAR(150) NOT NULL,
+            phone VARCHAR(50) NOT NULL,
+            email VARCHAR(150) NULL,
+            subject VARCHAR(180) NOT NULL,
+            message TEXT NOT NULL,
+            page_url VARCHAR(500) NULL,
+            status ENUM('Open', 'Replied', 'Closed') DEFAULT 'Open',
+            admin_reply TEXT NULL,
+            replied_at DATETIME NULL,
+            created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+            updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP
+        )
+    `)
+}
+
+const ensureVisitorTrackingTables = async () => {
+    await pool.query(`
+        CREATE TABLE IF NOT EXISTS visitor_sessions (
+            id INT AUTO_INCREMENT PRIMARY KEY,
+            session_id VARCHAR(120) NOT NULL UNIQUE,
+            source VARCHAR(80) DEFAULT 'direct',
+            referrer TEXT NULL,
+            ip_address VARCHAR(80) NULL,
+            user_agent TEXT NULL,
+            first_page VARCHAR(500) NULL,
+            last_page VARCHAR(500) NULL,
+            first_seen TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+            last_seen TIMESTAMP DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+            page_views INT DEFAULT 0
+        )
+    `)
+
+    await pool.query(`
+        CREATE TABLE IF NOT EXISTS visitor_page_views (
+            id INT AUTO_INCREMENT PRIMARY KEY,
+            session_id VARCHAR(120) NOT NULL,
+            page_url VARCHAR(500) NOT NULL,
+            page_title VARCHAR(255) NULL,
+            referrer TEXT NULL,
+            source VARCHAR(80) DEFAULT 'direct',
+            ip_address VARCHAR(80) NULL,
+            user_agent TEXT NULL,
+            viewed_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+            INDEX idx_visitor_page_session (session_id),
+            INDEX idx_visitor_page_viewed_at (viewed_at)
+        )
+    `)
+}
+
 const ensureProductsNotInActiveOffer = async (productIds, excludeOfferId = null) => {
     const ids = [...new Set((productIds || []).map(Number).filter(Boolean))]
 
@@ -463,6 +517,54 @@ router.put('/reviews/:id', optionalWrite(async (req) => {
         await pool.query('UPDATE product_reviews SET status = ? WHERE id = ?', [status || 'Approved', req.params.id])
     }
     return { message: 'Review updated' }
+}))
+
+router.get('/customer-messages', optionalList(async () => {
+    await ensureCustomerMessagesTable()
+    const [rows] = await pool.query(`
+        SELECT cm.*, COALESCE(u.full_name, u.user_name) AS user_name
+        FROM customer_messages cm
+        LEFT JOIN users u ON u.id = cm.user_id
+        ORDER BY FIELD(cm.status, 'Open', 'Replied', 'Closed'), cm.id DESC
+    `)
+    return rows
+}))
+
+router.put('/customer-messages/:id', optionalWrite(async (req) => {
+    await ensureCustomerMessagesTable()
+    const { status, admin_reply } = req.body
+    await pool.query(
+        `UPDATE customer_messages
+         SET status = ?, admin_reply = ?, replied_at = CASE WHEN ? <> '' THEN COALESCE(replied_at, NOW()) ELSE replied_at END
+         WHERE id = ?`,
+        [status || 'Open', admin_reply || '', admin_reply || '', req.params.id]
+    )
+    return { message: 'Message updated' }
+}))
+
+router.get('/visitor-analytics', optionalList(async () => {
+    await ensureVisitorTrackingTables()
+
+    const [sessions] = await pool.query(`
+        SELECT *
+        FROM visitor_sessions
+        ORDER BY last_seen DESC
+        LIMIT 200
+    `)
+    const [pages] = await pool.query(`
+        SELECT session_id, page_url, page_title, source, ip_address, viewed_at
+        FROM visitor_page_views
+        ORDER BY viewed_at DESC
+        LIMIT 500
+    `)
+    const [sources] = await pool.query(`
+        SELECT source, COUNT(*) AS sessions, SUM(page_views) AS page_views
+        FROM visitor_sessions
+        GROUP BY source
+        ORDER BY sessions DESC
+    `)
+
+    return { sessions, pages, sources }
 }))
 
 router.get('/social-links', optionalList(async () => {

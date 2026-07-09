@@ -31,6 +31,66 @@ const pool = mysql.createPool({
 const publicUserFields =
   'id, user_name, full_name, email, phone_number, location, address, city, photo, type, status, created_at';
 
+const getRequestIp = (req) =>
+  String(req.headers['x-forwarded-for'] || req.socket?.remoteAddress || '')
+    .split(',')[0]
+    .trim()
+    .replace(/^::ffff:/, '');
+
+const ensureCustomerMessagesTable = async () => {
+  await pool.query(`
+    CREATE TABLE IF NOT EXISTS customer_messages (
+      id INT AUTO_INCREMENT PRIMARY KEY,
+      user_id INT NULL,
+      name VARCHAR(150) NOT NULL,
+      phone VARCHAR(50) NOT NULL,
+      email VARCHAR(150) NULL,
+      subject VARCHAR(180) NOT NULL,
+      message TEXT NOT NULL,
+      page_url VARCHAR(500) NULL,
+      status ENUM('Open', 'Replied', 'Closed') DEFAULT 'Open',
+      admin_reply TEXT NULL,
+      replied_at DATETIME NULL,
+      created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+      updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP
+    )
+  `);
+};
+
+const ensureVisitorTrackingTables = async () => {
+  await pool.query(`
+    CREATE TABLE IF NOT EXISTS visitor_sessions (
+      id INT AUTO_INCREMENT PRIMARY KEY,
+      session_id VARCHAR(120) NOT NULL UNIQUE,
+      source VARCHAR(80) DEFAULT 'direct',
+      referrer TEXT NULL,
+      ip_address VARCHAR(80) NULL,
+      user_agent TEXT NULL,
+      first_page VARCHAR(500) NULL,
+      last_page VARCHAR(500) NULL,
+      first_seen TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+      last_seen TIMESTAMP DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+      page_views INT DEFAULT 0
+    )
+  `);
+
+  await pool.query(`
+    CREATE TABLE IF NOT EXISTS visitor_page_views (
+      id INT AUTO_INCREMENT PRIMARY KEY,
+      session_id VARCHAR(120) NOT NULL,
+      page_url VARCHAR(500) NOT NULL,
+      page_title VARCHAR(255) NULL,
+      referrer TEXT NULL,
+      source VARCHAR(80) DEFAULT 'direct',
+      ip_address VARCHAR(80) NULL,
+      user_agent TEXT NULL,
+      viewed_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+      INDEX idx_visitor_page_session (session_id),
+      INDEX idx_visitor_page_viewed_at (viewed_at)
+    )
+  `);
+};
+
 const normalizeProduct = (product) => ({
   ...product,
   price: Number(product.price || 0),
@@ -1355,6 +1415,93 @@ app.post('/support-tickets', async (req, res) => {
 
     console.error('Save support ticket failed:', error);
     res.status(500).json({ error: 'Error saving support request' });
+  }
+});
+
+app.get('/customer-messages', async (req, res) => {
+  try {
+    const phone = String(req.query.phone || '').trim();
+    if (!phone) return res.json([]);
+
+    await ensureCustomerMessagesTable();
+    const [rows] = await pool.query(
+      `SELECT id, subject, message, status, admin_reply, replied_at, created_at
+       FROM customer_messages
+       WHERE phone = ?
+       ORDER BY id DESC
+       LIMIT 10`,
+      [phone]
+    );
+
+    res.json(rows);
+  } catch (error) {
+    if (isMissingTable(error)) return res.json([]);
+    console.error('Fetch customer messages failed:', error);
+    res.status(500).json({ error: 'Error fetching messages' });
+  }
+});
+
+app.post('/customer-messages', async (req, res) => {
+  try {
+    const { user_id, name, phone, email, subject, message, page_url } = req.body;
+
+    if (!name || !phone || !subject || !message) {
+      return res.status(400).json({ error: 'Name, phone, subject and message are required' });
+    }
+
+    await ensureCustomerMessagesTable();
+    const [result] = await pool.query(
+      `INSERT INTO customer_messages
+       (user_id, name, phone, email, subject, message, page_url, status)
+       VALUES (?, ?, ?, ?, ?, ?, ?, 'Open')`,
+      [user_id || null, name, phone, email || '', subject, message, page_url || '']
+    );
+
+    res.status(201).json({ message: 'Message sent', id: result.insertId });
+  } catch (error) {
+    console.error('Save customer message failed:', error);
+    res.status(500).json({ error: 'Error saving message' });
+  }
+});
+
+app.post('/track-visit', async (req, res) => {
+  try {
+    const { session_id, page_url, page_title, referrer, source, user_agent } = req.body || {};
+
+    if (!session_id || !page_url) {
+      return res.status(400).json({ error: 'session_id and page_url are required' });
+    }
+
+    await ensureVisitorTrackingTables();
+    const ip = getRequestIp(req);
+    const cleanSource = String(source || 'direct').slice(0, 80);
+
+    await pool.query(
+      `INSERT INTO visitor_sessions
+       (session_id, source, referrer, ip_address, user_agent, first_page, last_page, page_views)
+       VALUES (?, ?, ?, ?, ?, ?, ?, 1)
+       ON DUPLICATE KEY UPDATE
+         last_page = VALUES(last_page),
+         source = COALESCE(NULLIF(source, ''), VALUES(source)),
+         referrer = COALESCE(NULLIF(referrer, ''), VALUES(referrer)),
+         ip_address = COALESCE(NULLIF(ip_address, ''), VALUES(ip_address)),
+         user_agent = COALESCE(NULLIF(user_agent, ''), VALUES(user_agent)),
+         page_views = page_views + 1,
+         last_seen = CURRENT_TIMESTAMP`,
+      [session_id, cleanSource, referrer || '', ip, user_agent || '', page_url, page_url]
+    );
+
+    await pool.query(
+      `INSERT INTO visitor_page_views
+       (session_id, page_url, page_title, referrer, source, ip_address, user_agent)
+       VALUES (?, ?, ?, ?, ?, ?, ?)`,
+      [session_id, page_url, page_title || '', referrer || '', cleanSource, ip, user_agent || '']
+    );
+
+    res.status(201).json({ ok: true });
+  } catch (error) {
+    console.error('Track visit failed:', error);
+    res.status(500).json({ error: 'Error tracking visit' });
   }
 });
 

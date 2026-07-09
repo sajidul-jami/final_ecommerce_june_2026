@@ -5,6 +5,8 @@ import "./globals.css";
 import Navber from "@/app/components/Navber.js"
 import Footer from "./components/Footer";
 import MobileBottomNav from "./components/MobileBottomNav";
+import CustomerMessageWidget from "./components/CustomerMessageWidget";
+import VisitorTracker from "./components/VisitorTracker";
 import { CartProvider } from "@/app/context/CartContext";
 import { UserProvider } from './context/UserContext';
 import { getSiteSettings, resolveSiteImage, siteUrl } from './lib/siteSettings';
@@ -96,6 +98,10 @@ export default async function RootLayout({ children }) {
             {children}
             <Footer settings={settings} />
             <MobileBottomNav />
+            <CustomerMessageWidget />
+            <Suspense fallback={null}>
+              <VisitorTracker />
+            </Suspense>
           </CartProvider>
         </UserProvider>
         <TrackingScripts settings={settings} />
