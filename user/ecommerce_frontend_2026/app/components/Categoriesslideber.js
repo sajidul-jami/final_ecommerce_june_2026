@@ -5,9 +5,9 @@ export function CategoryHeroSkeleton() {
   return (
     <section id="categories" className="bg-slate-950 text-white">
       <div className="mx-auto grid max-w-[1180px] gap-3 px-2 py-3 sm:px-3 sm:py-4 lg:grid-cols-[250px_1fr]">
-        <aside className="rounded-lg bg-white p-3 text-slate-900 shadow-xl shadow-slate-950/10">
+        <aside className="hidden rounded-lg bg-white p-3 text-slate-900 shadow-xl shadow-slate-950/10 lg:block">
           <div className="mb-3 h-10 animate-pulse rounded bg-slate-100" />
-          <div className="grid grid-cols-2 gap-2 lg:grid-cols-1">
+          <div className="grid gap-2">
             {Array.from({ length: 6 }).map((_, index) => (
               <div key={index} className="h-10 animate-pulse rounded-md bg-slate-100" />
             ))}
