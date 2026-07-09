@@ -12,6 +12,7 @@ const formatDate = (value) => {
 export default function MessagesPage() {
   const [messages, setMessages] = useState([])
   const [notice, setNotice] = useState('')
+  const [savingId, setSavingId] = useState(null)
 
   const load = async () => setMessages(await getCustomerMessages())
 
@@ -22,12 +23,15 @@ export default function MessagesPage() {
   const update = async (message, patch) => {
     const next = { ...message, ...patch }
     setMessages((items) => items.map((item) => item.id === message.id ? next : item))
+    setSavingId(message.id)
     try {
       await updateCustomerMessage(message.id, next)
       setNotice('Message saved.')
     } catch (error) {
       setNotice(error.message)
       load().catch(() => {})
+    } finally {
+      setSavingId(null)
     }
   }
 
@@ -70,10 +74,20 @@ export default function MessagesPage() {
               onChange={(event) => setMessages((items) => items.map((message) => (
                 message.id === item.id ? { ...message, admin_reply: event.target.value } : message
               )))}
-              onBlur={(event) => update(item, { admin_reply: event.target.value, status: event.target.value ? 'Replied' : item.status })}
-              placeholder="Write admin reply. Customer can see it from message history using their phone number."
+              placeholder="Write admin reply. Customer can see it in chat history."
               className="mt-3 min-h-28 w-full rounded-md border p-2 text-sm"
             />
+            <div className="mt-3 flex flex-wrap items-center justify-between gap-2">
+              <p className="text-xs text-slate-400">Route saved with message so you know which page/product customer asked from.</p>
+              <button
+                type="button"
+                onClick={() => update(item, { status: item.admin_reply ? 'Replied' : item.status, admin_reply: item.admin_reply || '' })}
+                disabled={savingId === item.id}
+                className="rounded-md bg-rose-600 px-4 py-2 text-sm font-semibold text-white shadow-sm hover:bg-rose-700 disabled:opacity-60"
+              >
+                {savingId === item.id ? 'Saving...' : 'Reply'}
+              </button>
+            </div>
           </article>
         )) : <p className="text-sm text-slate-500">No customer messages yet.</p>}
       </div>

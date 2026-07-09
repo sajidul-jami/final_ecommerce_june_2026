@@ -1,10 +1,30 @@
 'use client';
 
-import { useEffect, useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import { apiFetch } from '../lib/api';
 import { useUser } from '../context/UserContext';
 
-const emptyForm = { name: '', phone: '', email: '', subject: '', message: '' };
+const emptyForm = { name: '', phone: '', message: '' };
+
+const ChatIcon = ({ size = 26 }) => (
+  <svg width={size} height={size} viewBox="0 0 24 24" fill="none" aria-hidden="true">
+    <path d="M4.5 12.2C4.5 7.9 8 4.8 12 4.8s7.5 3.1 7.5 7.4-3.5 7.4-7.5 7.4c-.9 0-1.8-.2-2.6-.5L5.6 20l.9-3.4a7.2 7.2 0 0 1-2-4.4Z" stroke="currentColor" strokeWidth="2" strokeLinejoin="round" />
+    <path d="M8.3 11.2h7.4M8.3 14h4.7" stroke="currentColor" strokeWidth="2" strokeLinecap="round" />
+  </svg>
+);
+
+const CloseIcon = ({ size = 22 }) => (
+  <svg width={size} height={size} viewBox="0 0 24 24" fill="none" aria-hidden="true">
+    <path d="M6.5 6.5l11 11M17.5 6.5l-11 11" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round" />
+  </svg>
+);
+
+const SendIcon = ({ size = 18 }) => (
+  <svg width={size} height={size} viewBox="0 0 24 24" fill="none" aria-hidden="true">
+    <path d="m4 12 16-7-5.4 14-3-6.1L4 12Z" stroke="currentColor" strokeWidth="2" strokeLinejoin="round" />
+    <path d="m11.6 12.9 3.8-4" stroke="currentColor" strokeWidth="2" strokeLinecap="round" />
+  </svg>
+);
 
 export default function CustomerMessageWidget() {
   const { user } = useUser();
@@ -13,6 +33,7 @@ export default function CustomerMessageWidget() {
   const [messages, setMessages] = useState([]);
   const [status, setStatus] = useState('');
   const [loading, setLoading] = useState(false);
+  const historyRef = useRef(null);
 
   useEffect(() => {
     if (!user) return;
@@ -20,15 +41,21 @@ export default function CustomerMessageWidget() {
       ...current,
       name: current.name || user.full_name || user.user_name || '',
       phone: current.phone || user.phone_number || '',
-      email: current.email || user.email || '',
     }));
   }, [user]);
 
+  useEffect(() => {
+    if (!open || !historyRef.current) return;
+    historyRef.current.scrollTop = historyRef.current.scrollHeight;
+  }, [open, messages]);
+
   const loadMessages = async (phone = form.phone) => {
-    if (!phone) return;
+    const safePhone = String(phone || '').trim();
+    if (!safePhone) return;
+
     try {
-      const rows = await apiFetch(`/customer-messages?phone=${encodeURIComponent(phone)}`);
-      setMessages(Array.isArray(rows) ? rows : []);
+      const rows = await apiFetch(`/customer-messages?phone=${encodeURIComponent(safePhone)}`);
+      setMessages(Array.isArray(rows) ? rows.reverse() : []);
     } catch {
       setMessages([]);
     }
@@ -36,6 +63,15 @@ export default function CustomerMessageWidget() {
 
   const submit = async (event) => {
     event.preventDefault();
+    const safeName = form.name.trim();
+    const safePhone = form.phone.trim();
+    const safeMessage = form.message.trim();
+
+    if (!safeName || !safePhone || !safeMessage) {
+      setStatus('Name, phone and message needed.');
+      return;
+    }
+
     setStatus('');
     setLoading(true);
 
@@ -43,14 +79,16 @@ export default function CustomerMessageWidget() {
       await apiFetch('/customer-messages', {
         method: 'POST',
         body: JSON.stringify({
-          ...form,
           user_id: user?.id || null,
+          name: safeName,
+          phone: safePhone,
+          subject: document.title || 'Customer message',
+          message: safeMessage,
           page_url: window.location.href,
         }),
       });
-      setStatus('Message sent. Admin will reply soon.');
-      setForm((current) => ({ ...current, subject: '', message: '' }));
-      await loadMessages(form.phone);
+      setForm((current) => ({ ...current, message: '' }));
+      await loadMessages(safePhone);
     } catch (error) {
       setStatus(error.message || 'Message send failed.');
     } finally {
@@ -58,61 +96,96 @@ export default function CustomerMessageWidget() {
     }
   };
 
+  const openWidget = () => {
+    setOpen(true);
+    loadMessages();
+  };
+
   return (
     <>
       <button
         type="button"
-        onClick={() => {
-          setOpen((value) => !value);
-          if (!open) loadMessages();
-        }}
-        className="fixed bottom-[9rem] right-3 z-[55] rounded-full bg-slate-950 px-4 py-3 text-sm font-black text-white shadow-2xl transition hover:bg-rose-600 lg:bottom-6"
+        onClick={() => (open ? setOpen(false) : openWidget())}
+        className="fixed bottom-[9rem] right-3 z-[55] grid h-14 w-14 place-items-center rounded-full bg-rose-600 text-white shadow-2xl shadow-rose-600/30 ring-4 ring-white transition hover:bg-rose-700 lg:bottom-6 lg:h-16 lg:w-16"
+        aria-label={open ? 'Close message chat' : 'Open message chat'}
       >
-        Message
+        {open ? <CloseIcon size={24} /> : <ChatIcon size={28} />}
       </button>
 
       {open && (
-        <section className="fixed bottom-[12.5rem] right-3 z-[70] w-[calc(100vw-1.5rem)] max-w-sm overflow-hidden rounded-2xl border border-slate-200 bg-white text-slate-950 shadow-2xl lg:bottom-20">
-          <div className="flex items-center justify-between border-b border-slate-100 px-4 py-3">
-            <div>
-              <p className="text-xs font-black uppercase tracking-wide text-rose-600">Need help?</p>
-              <h2 className="font-black">Message us</h2>
+        <section className="fixed bottom-[13rem] right-3 z-[70] flex h-[min(72vh,560px)] w-[calc(100vw-1.5rem)] max-w-sm flex-col overflow-hidden rounded-3xl border border-rose-100 bg-white text-slate-950 shadow-2xl lg:bottom-24 lg:max-w-md">
+          <div className="bg-gradient-to-r from-rose-600 to-red-500 px-4 py-4 text-white">
+            <div className="flex items-center justify-between gap-3">
+              <div>
+                <p className="text-xs font-black uppercase tracking-wide text-white/75">Live message</p>
+                <h2 className="text-lg font-black">How can we help?</h2>
+              </div>
+              <button type="button" onClick={() => setOpen(false)} className="grid h-9 w-9 place-items-center rounded-full bg-white/15">
+                <CloseIcon size={18} />
+              </button>
             </div>
-            <button type="button" onClick={() => setOpen(false)} className="grid h-8 w-8 place-items-center rounded-full bg-slate-100 font-black">
-              x
-            </button>
           </div>
 
-          <div className="max-h-[70vh] overflow-y-auto p-4">
-            {status && <p className="mb-3 rounded-md bg-slate-50 p-3 text-sm font-semibold text-slate-700">{status}</p>}
-            <form onSubmit={submit} className="grid gap-2">
-              <input value={form.name} onChange={(e) => setForm({ ...form, name: e.target.value })} placeholder="Name" className="rounded-md border border-slate-300 px-3 py-2 text-sm outline-none focus:border-slate-950" required />
-              <input value={form.phone} onChange={(e) => setForm({ ...form, phone: e.target.value })} onBlur={() => loadMessages()} placeholder="Phone" className="rounded-md border border-slate-300 px-3 py-2 text-sm outline-none focus:border-slate-950" required />
-              <input value={form.email} onChange={(e) => setForm({ ...form, email: e.target.value })} placeholder="Email optional" className="rounded-md border border-slate-300 px-3 py-2 text-sm outline-none focus:border-slate-950" />
-              <input value={form.subject} onChange={(e) => setForm({ ...form, subject: e.target.value })} placeholder="Subject" className="rounded-md border border-slate-300 px-3 py-2 text-sm outline-none focus:border-slate-950" required />
-              <textarea value={form.message} onChange={(e) => setForm({ ...form, message: e.target.value })} placeholder="Your message" className="min-h-24 rounded-md border border-slate-300 px-3 py-2 text-sm outline-none focus:border-slate-950" required />
-              <button disabled={loading} className="rounded-md bg-rose-600 px-4 py-2.5 text-sm font-black text-white disabled:opacity-60">
-                {loading ? 'Sending...' : 'Send Message'}
-              </button>
-            </form>
-
-            {messages.length > 0 && (
-              <div className="mt-4 space-y-2">
-                <p className="text-xs font-black uppercase tracking-wide text-slate-400">Previous replies</p>
-                {messages.map((item) => (
-                  <article key={item.id} className="rounded-lg border border-slate-100 bg-slate-50 p-3 text-sm">
-                    <p className="font-black text-slate-900">{item.subject}</p>
-                    <p className="mt-1 text-slate-600">{item.message}</p>
-                    {item.admin_reply ? (
-                      <p className="mt-2 rounded-md bg-emerald-50 p-2 font-semibold text-emerald-800">Admin: {item.admin_reply}</p>
-                    ) : (
-                      <p className="mt-2 text-xs font-bold text-amber-600">Waiting for reply</p>
-                    )}
-                  </article>
-                ))}
+          <div ref={historyRef} className="flex-1 space-y-3 overflow-y-auto bg-slate-50 px-4 py-4">
+            {!messages.length && (
+              <div className="rounded-2xl bg-white p-4 text-sm font-semibold text-slate-600 shadow-sm">
+                Send a quick message. We will reply here, and you can check history with your phone number.
               </div>
             )}
+
+            {messages.map((item) => (
+              <div key={item.id} className="space-y-2">
+                <div className="ml-auto max-w-[86%] rounded-2xl rounded-br-md bg-rose-600 px-4 py-3 text-sm font-semibold text-white shadow-sm">
+                  {item.message}
+                </div>
+                {item.admin_reply ? (
+                  <div className="max-w-[86%] rounded-2xl rounded-bl-md bg-white px-4 py-3 text-sm text-slate-700 shadow-sm">
+                    <p className="mb-1 text-xs font-black uppercase tracking-wide text-rose-600">Admin reply</p>
+                    {item.admin_reply}
+                  </div>
+                ) : (
+                  <p className="text-right text-xs font-bold text-amber-600">Waiting for admin reply</p>
+                )}
+              </div>
+            ))}
           </div>
+
+          <form onSubmit={submit} className="space-y-2 border-t border-slate-100 bg-white p-3">
+            {status && <p className="rounded-xl bg-amber-50 px-3 py-2 text-xs font-bold text-amber-700">{status}</p>}
+            <div className="grid grid-cols-2 gap-2">
+              <input
+                value={form.name}
+                onChange={(event) => setForm({ ...form, name: event.target.value })}
+                placeholder="Name"
+                className="min-w-0 rounded-full border border-slate-200 px-3 py-2.5 text-sm outline-none focus:border-rose-500"
+                required
+              />
+              <input
+                value={form.phone}
+                onChange={(event) => setForm({ ...form, phone: event.target.value })}
+                onBlur={() => loadMessages()}
+                placeholder="Phone"
+                className="min-w-0 rounded-full border border-slate-200 px-3 py-2.5 text-sm outline-none focus:border-rose-500"
+                required
+              />
+            </div>
+            <div className="flex items-end gap-2 rounded-2xl border border-slate-200 bg-slate-50 p-2 focus-within:border-rose-500">
+              <textarea
+                value={form.message}
+                onChange={(event) => setForm({ ...form, message: event.target.value })}
+                placeholder="Type your message..."
+                className="max-h-28 min-h-11 flex-1 resize-none bg-transparent px-2 py-2 text-sm outline-none"
+                required
+              />
+              <button
+                disabled={loading}
+                className="grid h-11 w-11 shrink-0 place-items-center rounded-full bg-rose-600 text-white shadow-sm transition hover:bg-rose-700 disabled:opacity-60"
+                aria-label="Send message"
+              >
+                <SendIcon size={18} />
+              </button>
+            </div>
+          </form>
         </section>
       )}
     </>

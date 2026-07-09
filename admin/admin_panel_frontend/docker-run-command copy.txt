@@ -1,8 +1,3 @@
-
-docker build -t admin-ecommerce-frontend_2026-image .
-docker run -d -p 3002:3000 --env-file .env admin-ecommerce-frontend_2026
-
-
 docker build --no-cache \
   --build-arg NEXT_PUBLIC_API_URL=http://192.168.1.146:3001/api \
   --build-arg NEXT_PUBLIC_UPLOAD_URL=http://192.168.1.146:3001/upload \
@@ -17,5 +12,7 @@ docker run -d \
   -e NEXT_PUBLIC_PRODUCT_IMAGE_BASE_URL=http://192.168.1.146:9000/ecommerce \
   admin-ecommerce-frontend_2026-image
   
+
+
   
   

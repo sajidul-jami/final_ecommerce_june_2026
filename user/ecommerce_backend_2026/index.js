@@ -1445,16 +1445,17 @@ app.post('/customer-messages', async (req, res) => {
   try {
     const { user_id, name, phone, email, subject, message, page_url } = req.body;
 
-    if (!name || !phone || !subject || !message) {
-      return res.status(400).json({ error: 'Name, phone, subject and message are required' });
+    if (!name || !phone || !message) {
+      return res.status(400).json({ error: 'Name, phone and message are required' });
     }
 
     await ensureCustomerMessagesTable();
+    const safeSubject = String(subject || 'Customer message').trim() || 'Customer message';
     const [result] = await pool.query(
       `INSERT INTO customer_messages
        (user_id, name, phone, email, subject, message, page_url, status)
        VALUES (?, ?, ?, ?, ?, ?, ?, 'Open')`,
-      [user_id || null, name, phone, email || '', subject, message, page_url || '']
+      [user_id || null, name, phone, email || '', safeSubject, message, page_url || '']
     );
 
     res.status(201).json({ message: 'Message sent', id: result.insertId });

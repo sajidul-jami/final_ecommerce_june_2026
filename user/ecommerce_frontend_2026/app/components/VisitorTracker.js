@@ -32,6 +32,8 @@ export default function VisitorTracker() {
   const searchParams = useSearchParams();
 
   useEffect(() => {
+    if (!API_BASE_URL) return;
+
     const payload = {
       session_id: getSessionId(),
       page_url: `${window.location.pathname}${window.location.search}`,
@@ -41,17 +43,12 @@ export default function VisitorTracker() {
       user_agent: navigator.userAgent,
     };
 
-    const body = JSON.stringify(payload);
-    if (navigator.sendBeacon) {
-      navigator.sendBeacon(`${API_BASE_URL}/track-visit`, new Blob([body], { type: 'application/json' }));
-      return;
-    }
-
     fetch(`${API_BASE_URL}/track-visit`, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
-      body,
+      body: JSON.stringify(payload),
       keepalive: true,
+      mode: 'cors',
     }).catch(() => {});
   }, [pathname, searchParams]);
 
