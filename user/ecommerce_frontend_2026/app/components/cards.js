@@ -13,7 +13,14 @@ const taka = new Intl.NumberFormat('en-BD', {
   maximumFractionDigits: 0,
 });
 
-const productHref = (product) => `/product/${product.slug || product.id}`;
+const slugify = (value = '') =>
+  String(value)
+    .toLowerCase()
+    .trim()
+    .replace(/[^a-z0-9]+/g, '-')
+    .replace(/(^-|-$)/g, '');
+
+const productHref = (product) => `/product/${encodeURIComponent(product.slug || slugify(product.name) || product.id)}`;
 
 export default function Cards({
   products = [],

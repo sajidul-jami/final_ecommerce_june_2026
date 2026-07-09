@@ -1,5 +1,12 @@
 import { API_BASE_URL, SITE_URL } from './lib/api';
 
+const slugify = (value = '') =>
+  String(value)
+    .toLowerCase()
+    .trim()
+    .replace(/[^a-z0-9]+/g, '-')
+    .replace(/(^-|-$)/g, '');
+
 async function safeApi(path) {
   if (!API_BASE_URL) return [];
 
@@ -32,7 +39,7 @@ export default async function sitemap() {
       priority: 0.8,
     })),
     ...products.map((product) => ({
-      url: `${SITE_URL}/product/${product.slug || product.id}`,
+      url: `${SITE_URL}/product/${product.slug || slugify(product.name) || product.id}`,
       lastModified: product.created_at ? new Date(product.created_at) : new Date(),
       changeFrequency: 'weekly',
       priority: 0.7,

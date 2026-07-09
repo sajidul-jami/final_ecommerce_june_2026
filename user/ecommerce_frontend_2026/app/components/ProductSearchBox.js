@@ -11,6 +11,13 @@ const taka = new Intl.NumberFormat('en-BD', {
   maximumFractionDigits: 0,
 });
 
+const slugify = (value = '') =>
+  String(value)
+    .toLowerCase()
+    .trim()
+    .replace(/[^a-z0-9]+/g, '-')
+    .replace(/(^-|-$)/g, '');
+
 const fetchSearchSuggestions = async (query) => {
   const suggestionUrl = `${API_BASE_URL}/search-suggestions?q=${encodeURIComponent(query)}&limit=8`;
   const suggestionResponse = await fetch(suggestionUrl);
@@ -96,7 +103,7 @@ export default function ProductSearchBox({
 
   const openProduct = (item) => {
     setOpen(false);
-    router.push(`/product/${item.slug || item.id}`);
+    router.push(`/product/${encodeURIComponent(item.slug || slugify(item.name) || item.id)}`);
   };
 
   const handleBlur = () => {

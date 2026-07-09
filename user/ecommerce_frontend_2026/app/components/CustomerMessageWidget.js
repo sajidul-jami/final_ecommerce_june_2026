@@ -1,10 +1,11 @@
 'use client';
 
-import { useEffect, useRef, useState } from 'react';
+import { useCallback, useEffect, useRef, useState } from 'react';
 import { apiFetch } from '../lib/api';
 import { useUser } from '../context/UserContext';
 
 const emptyForm = { name: '', phone: '', message: '' };
+const identityKey = 'customer_message_identity';
 
 const ChatIcon = ({ size = 26 }) => (
   <svg width={size} height={size} viewBox="0 0 24 24" fill="none" aria-hidden="true">
@@ -34,22 +35,41 @@ export default function CustomerMessageWidget() {
   const [status, setStatus] = useState('');
   const [loading, setLoading] = useState(false);
   const historyRef = useRef(null);
+  const userName = user?.full_name || user?.user_name || '';
+  const userPhone = user?.phone_number || user?.phone || '';
+  const hasLoggedInContact = Boolean(userName && userPhone);
 
   useEffect(() => {
-    if (!user) return;
+    const saved = localStorage.getItem(identityKey);
+    if (!saved) return;
+
+    try {
+      const identity = JSON.parse(saved);
+      setForm((current) => ({
+        ...current,
+        name: current.name || identity.name || '',
+        phone: current.phone || identity.phone || '',
+      }));
+    } catch {
+      localStorage.removeItem(identityKey);
+    }
+  }, []);
+
+  useEffect(() => {
+    if (!userName && !userPhone) return;
     setForm((current) => ({
       ...current,
-      name: current.name || user.full_name || user.user_name || '',
-      phone: current.phone || user.phone_number || '',
+      name: userName || current.name,
+      phone: userPhone || current.phone,
     }));
-  }, [user]);
+  }, [userName, userPhone]);
 
   useEffect(() => {
     if (!open || !historyRef.current) return;
     historyRef.current.scrollTop = historyRef.current.scrollHeight;
   }, [open, messages]);
 
-  const loadMessages = async (phone = form.phone) => {
+  const loadMessages = useCallback(async (phone = form.phone) => {
     const safePhone = String(phone || '').trim();
     if (!safePhone) return;
 
@@ -59,7 +79,22 @@ export default function CustomerMessageWidget() {
     } catch {
       setMessages([]);
     }
-  };
+  }, [form.phone]);
+
+  useEffect(() => {
+    const phone = form.phone.trim();
+    if (!open || !phone) return undefined;
+
+    loadMessages(phone);
+    const timer = setInterval(() => loadMessages(phone), 8000);
+    const refreshOnFocus = () => loadMessages(phone);
+    window.addEventListener('focus', refreshOnFocus);
+
+    return () => {
+      clearInterval(timer);
+      window.removeEventListener('focus', refreshOnFocus);
+    };
+  }, [form.phone, loadMessages, open]);
 
   const submit = async (event) => {
     event.preventDefault();
@@ -76,6 +111,7 @@ export default function CustomerMessageWidget() {
     setLoading(true);
 
     try {
+      localStorage.setItem(identityKey, JSON.stringify({ name: safeName, phone: safePhone }));
       await apiFetch('/customer-messages', {
         method: 'POST',
         body: JSON.stringify({
@@ -98,7 +134,6 @@ export default function CustomerMessageWidget() {
 
   const openWidget = () => {
     setOpen(true);
-    loadMessages();
   };
 
   return (
@@ -106,14 +141,14 @@ export default function CustomerMessageWidget() {
       <button
         type="button"
         onClick={() => (open ? setOpen(false) : openWidget())}
-        className="fixed bottom-[9rem] right-3 z-[55] grid h-14 w-14 place-items-center rounded-full bg-rose-600 text-white shadow-2xl shadow-rose-600/30 ring-4 ring-white transition hover:bg-rose-700 lg:bottom-6 lg:h-16 lg:w-16"
+        className="fixed bottom-[9rem] right-3 z-[55] grid h-14 w-14 place-items-center rounded-full bg-rose-600 text-white shadow-2xl shadow-rose-600/30 ring-4 ring-white transition hover:bg-rose-700 lg:bottom-6 lg:right-8 lg:h-16 lg:w-16"
         aria-label={open ? 'Close message chat' : 'Open message chat'}
       >
         {open ? <CloseIcon size={24} /> : <ChatIcon size={28} />}
       </button>
 
       {open && (
-        <section className="fixed bottom-[13rem] right-3 z-[70] flex h-[min(72vh,560px)] w-[calc(100vw-1.5rem)] max-w-sm flex-col overflow-hidden rounded-3xl border border-rose-100 bg-white text-slate-950 shadow-2xl lg:bottom-24 lg:max-w-md">
+        <section className="fixed bottom-[13rem] right-3 z-[70] flex h-[min(72vh,560px)] w-[calc(100vw-1.5rem)] max-w-sm flex-col overflow-hidden rounded-3xl border border-rose-100 bg-white text-slate-950 shadow-2xl lg:bottom-24 lg:right-8 lg:h-[620px] lg:w-[460px] lg:max-w-none xl:w-[500px]">
           <div className="bg-gradient-to-r from-rose-600 to-red-500 px-4 py-4 text-white">
             <div className="flex items-center justify-between gap-3">
               <div>
@@ -129,7 +164,7 @@ export default function CustomerMessageWidget() {
           <div ref={historyRef} className="flex-1 space-y-3 overflow-y-auto bg-slate-50 px-4 py-4">
             {!messages.length && (
               <div className="rounded-2xl bg-white p-4 text-sm font-semibold text-slate-600 shadow-sm">
-                Send a quick message. We will reply here, and you can check history with your phone number.
+                Send a quick message. We will reply here automatically.
               </div>
             )}
 
@@ -152,23 +187,29 @@ export default function CustomerMessageWidget() {
 
           <form onSubmit={submit} className="space-y-2 border-t border-slate-100 bg-white p-3">
             {status && <p className="rounded-xl bg-amber-50 px-3 py-2 text-xs font-bold text-amber-700">{status}</p>}
-            <div className="grid grid-cols-2 gap-2">
-              <input
-                value={form.name}
-                onChange={(event) => setForm({ ...form, name: event.target.value })}
-                placeholder="Name"
-                className="min-w-0 rounded-full border border-slate-200 px-3 py-2.5 text-sm outline-none focus:border-rose-500"
-                required
-              />
-              <input
-                value={form.phone}
-                onChange={(event) => setForm({ ...form, phone: event.target.value })}
-                onBlur={() => loadMessages()}
-                placeholder="Phone"
-                className="min-w-0 rounded-full border border-slate-200 px-3 py-2.5 text-sm outline-none focus:border-rose-500"
-                required
-              />
-            </div>
+            {!hasLoggedInContact && (
+              <div className="grid grid-cols-2 gap-2">
+                {!userName && (
+                  <input
+                    value={form.name}
+                    onChange={(event) => setForm({ ...form, name: event.target.value })}
+                    placeholder="Name"
+                    className="min-w-0 rounded-full border border-slate-200 px-3 py-2.5 text-sm outline-none focus:border-rose-500"
+                    required
+                  />
+                )}
+                {!userPhone && (
+                  <input
+                    value={form.phone}
+                    onChange={(event) => setForm({ ...form, phone: event.target.value })}
+                    onBlur={() => loadMessages()}
+                    placeholder="Phone"
+                    className={`${userName ? 'col-span-2' : ''} min-w-0 rounded-full border border-slate-200 px-3 py-2.5 text-sm outline-none focus:border-rose-500`}
+                    required
+                  />
+                )}
+              </div>
+            )}
             <div className="flex items-end gap-2 rounded-2xl border border-slate-200 bg-slate-50 p-2 focus-within:border-rose-500">
               <textarea
                 value={form.message}

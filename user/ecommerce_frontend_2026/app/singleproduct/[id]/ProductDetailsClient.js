@@ -16,6 +16,13 @@ const taka = new Intl.NumberFormat('en-BD', {
   maximumFractionDigits: 0,
 });
 
+const slugify = (value = '') =>
+  String(value)
+    .toLowerCase()
+    .trim()
+    .replace(/[^a-z0-9]+/g, '-')
+    .replace(/(^-|-$)/g, '');
+
 export default function ProductDetailsClient({ product }) {
   const router = useRouter();
   const { user } = useUser();
@@ -120,7 +127,7 @@ export default function ProductDetailsClient({ product }) {
     setReviewMessage('');
 
     if (!user) {
-      router.push(`/login_signup/login?redirect=/product/${product.slug || product.id}`);
+      router.push(`/login_signup/login?redirect=/product/${product.slug || slugify(product.name) || product.id}`);
       return;
     }
 

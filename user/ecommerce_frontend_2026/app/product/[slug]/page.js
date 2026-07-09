@@ -1,4 +1,4 @@
-import { notFound } from 'next/navigation';
+import { notFound, permanentRedirect } from 'next/navigation';
 import ProductDetailsClient from '@/app/singleproduct/[id]/ProductDetailsClient';
 import { API_BASE_URL, PRODUCT_IMAGE_BASE_URL } from '@/app/lib/api';
 import { getSiteSettings } from '@/app/lib/siteSettings';
@@ -74,7 +74,7 @@ export async function generateMetadata({ params }) {
   return {
     title: product.name,
     description,
-    alternates: { canonical: `/product/${product.slug || slug}` },
+    alternates: { canonical: `/product/${product.slug || slugify(product.name) || slug}` },
     openGraph: {
       title: product.name,
       description,
@@ -90,6 +90,11 @@ export default async function ProductSlugPage({ params }) {
 
   if (!product) {
     notFound();
+  }
+
+  const canonicalSlug = product.slug || slugify(product.name) || String(product.id);
+  if (slug !== canonicalSlug) {
+    permanentRedirect(`/product/${encodeURIComponent(canonicalSlug)}`);
   }
 
   const jsonLd = {
