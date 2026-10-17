@@ -1,5 +1,6 @@
 const express = require('express');
 const router = express.Router();
+const invalidateStorefrontCache = require('../../utils/invalidate_storefront_cache');
 
 const {
     getAllProducts,
@@ -8,7 +9,6 @@ const {
     updateProduct,
     deleteProduct
 } = require('../../sql/product_model');
-
 
 router.get('/', (req, res) => {
     getAllProducts((err, results) => {
@@ -42,8 +42,10 @@ router.post('/add', (req, res) => {
         })
     }
 
-    addProduct(req.body, (err, result) => {
+    addProduct(req.body, async (err, result) => {
         if (err) return res.status(500).json({ success: false, message: err.message });
+
+        await invalidateStorefrontCache();
 
         res.json({
             success: true,
@@ -64,18 +66,20 @@ router.put('/update/:id', (req, res) => {
         })
     }
 
-    updateProduct(req.params.id, req.body, (err) => {
+    updateProduct(req.params.id, req.body, async (err) => {
         if (err) return res.status(500).json({ success: false, message: err.message });
 
+        await invalidateStorefrontCache();
         res.json({ success: true, message: 'Product Updated' });
     });
 });
 
 
 router.delete('/delete/:id', (req, res) => {
-    deleteProduct(req.params.id, (err) => {
+    deleteProduct(req.params.id, async (err) => {
         if (err) return res.status(500).json({ success: false, message: err.message });
 
+        await invalidateStorefrontCache();
         res.json({ success: true, message: 'Product Deleted' });
     });
 });

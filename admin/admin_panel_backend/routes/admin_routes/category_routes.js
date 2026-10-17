@@ -1,5 +1,6 @@
 const express = require('express')
 const router = express.Router()
+const invalidateStorefrontCache = require('../../utils/invalidate_storefront_cache')
 
 const {
     getAllCategories,
@@ -48,7 +49,7 @@ router.get('/:id', (req, res) => {
 // ADD
 // =========================
 router.post('/add', (req, res) => {
-    addCategory(req.body, (err, result) => {
+    addCategory(req.body, async (err, result) => {
 
         if (err) {
             return res.status(400).json({
@@ -57,6 +58,7 @@ router.post('/add', (req, res) => {
             })
         }
 
+        await invalidateStorefrontCache()
         res.json({
             success: true,
             message: 'Category added',
@@ -69,7 +71,7 @@ router.post('/add', (req, res) => {
 // UPDATE
 // =========================
 router.put('/update/:id', (req, res) => {
-    updateCategory(req.params.id, req.body, (err) => {
+    updateCategory(req.params.id, req.body, async (err) => {
 
         if (err) {
             return res.status(500).json({
@@ -78,6 +80,7 @@ router.put('/update/:id', (req, res) => {
             })
         }
 
+        await invalidateStorefrontCache()
         res.json({
             success: true,
             message: 'Category updated'
@@ -89,7 +92,7 @@ router.put('/update/:id', (req, res) => {
 // DELETE
 // =========================
 router.delete('/delete/:id', (req, res) => {
-    deleteCategory(req.params.id, (err) => {
+    deleteCategory(req.params.id, async (err) => {
 
         if (err) {
             return res.status(400).json({
@@ -98,6 +101,7 @@ router.delete('/delete/:id', (req, res) => {
             })
         }
 
+        await invalidateStorefrontCache()
         res.json({
             success: true,
             message: 'Category deleted'

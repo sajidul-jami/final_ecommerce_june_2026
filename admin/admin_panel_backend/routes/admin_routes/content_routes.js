@@ -1,5 +1,6 @@
 const express = require('express')
 const db = require('../../sql/pool')
+const invalidateStorefrontCache = require('../../utils/invalidate_storefront_cache')
 
 const router = express.Router()
 const pool = db.promise()
@@ -240,6 +241,7 @@ const optionalList = (handler) => async (req, res) => {
 const optionalWrite = (handler) => async (req, res) => {
     try {
         const data = await handler(req)
+        await invalidateStorefrontCache()
         res.json({ success: true, ...data })
     } catch (error) {
         if (missingTable(error) || missingColumn(error)) {

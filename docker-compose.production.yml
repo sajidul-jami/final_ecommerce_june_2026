@@ -81,8 +81,13 @@ services:
       JWT_SECRET: ${USER_JWT_SECRET:?Set USER_JWT_SECRET in your production .env}
       CLIENT_URL: ${NEXT_PUBLIC_SITE_URL:?Set NEXT_PUBLIC_SITE_URL in your production .env}
       CORS_ORIGINS: ${USER_CORS_ORIGINS:-}
-    ports:
-      - "${USER_BACKEND_PORT:-3005}:3005"
+      PRODUCT_CACHE_REVALIDATION_SECRET: ${PRODUCT_CACHE_REVALIDATION_SECRET:?Set PRODUCT_CACHE_REVALIDATION_SECRET in your production .env}
+      PRODUCT_CACHE_REVALIDATION_URL: http://user-frontend:3000/api/cache/products
+      NGINX_PRODUCT_CACHE_PATH: /var/cache/nginx/product-pages
+    expose:
+      - "3005"
+    volumes:
+      - product_page_cache:/var/cache/nginx
     networks:
       - website2026
     healthcheck:
@@ -110,6 +115,9 @@ services:
       CLIENT_URL: ${ADMIN_CLIENT_URL:?Set ADMIN_CLIENT_URL in your production .env}
       ADMIN_CLIENT_URL: ${ADMIN_CLIENT_URL:?Set ADMIN_CLIENT_URL in your production .env}
       CORS_ORIGINS: ${ADMIN_CORS_ORIGINS:-}
+      PRODUCT_CACHE_REVALIDATION_SECRET: ${PRODUCT_CACHE_REVALIDATION_SECRET:?Set PRODUCT_CACHE_REVALIDATION_SECRET in your production .env}
+      PRODUCT_CACHE_REVALIDATION_URL: http://user-frontend:3000/api/cache/products
+      NGINX_PRODUCT_CACHE_PATH: /var/cache/nginx/product-pages
       DB_HOST: mysql
       DB_USER: ${DB_USER:-root}
       DB_PASSWORD: ${MYSQL_ROOT_PASSWORD:?Set MYSQL_ROOT_PASSWORD in your production .env}
@@ -121,8 +129,10 @@ services:
       MINIO_ACCESS_KEY: ${MINIO_ACCESS_KEY:?Set MINIO_ACCESS_KEY in your production .env}
       MINIO_SECRET_KEY: ${MINIO_SECRET_KEY:?Set MINIO_SECRET_KEY in your production .env}
       MINIO_PUBLIC_URL: ${MINIO_PUBLIC_URL:?Set MINIO_PUBLIC_URL in your production .env}
-    ports:
-      - "${ADMIN_BACKEND_PORT:-3001}:3001"
+    expose:
+      - "3001"
+    volumes:
+      - product_page_cache:/var/cache/nginx
     networks:
       - website2026
     healthcheck:
@@ -149,8 +159,8 @@ services:
       NEXT_PUBLIC_API_BASE_URL: ${NEXT_PUBLIC_USER_API_BASE_URL:?Set NEXT_PUBLIC_USER_API_BASE_URL in your production .env}
       NEXT_PUBLIC_PRODUCT_IMAGE_BASE_URL: ${NEXT_PUBLIC_PRODUCT_IMAGE_BASE_URL:?Set NEXT_PUBLIC_PRODUCT_IMAGE_BASE_URL in your production .env}
       NEXT_PUBLIC_SITE_URL: ${NEXT_PUBLIC_SITE_URL:?Set NEXT_PUBLIC_SITE_URL in your production .env}
-    ports:
-      - "${USER_FRONTEND_PORT:-3000}:3000"
+    expose:
+      - "3000"
     networks:
       - website2026
     healthcheck:
@@ -159,6 +169,48 @@ services:
       timeout: 5s
       retries: 5
       start_period: 30s
+
+  nginx-cache-init:
+    image: nginx:stable-alpine
+    entrypoint: ["/bin/sh", "-c"]
+    command: ["mkdir -p /var/cache/nginx/product-pages && chown -R nginx:nginx /var/cache/nginx/product-pages"]
+    volumes:
+      - product_page_cache:/var/cache/nginx
+    restart: "no"
+
+  nginx:
+    image: nginx:stable-alpine
+    container_name: website2026-nginx
+    restart: unless-stopped
+    depends_on:
+      user-frontend:
+        condition: service_healthy
+      admin-frontend:
+        condition: service_healthy
+      user-backend:
+        condition: service_healthy
+      admin-backend:
+        condition: service_healthy
+      nginx-cache-init:
+        condition: service_completed_successfully
+    ports:
+      - "${HTTP_PORT:-80}:80"
+    environment:
+      SHOP_DOMAIN: ${SHOP_DOMAIN:?Set SHOP_DOMAIN in your production .env}
+      USER_API_DOMAIN: ${USER_API_DOMAIN:?Set USER_API_DOMAIN in your production .env}
+      ADMIN_DOMAIN: ${ADMIN_DOMAIN:?Set ADMIN_DOMAIN in your production .env}
+      ADMIN_API_DOMAIN: ${ADMIN_API_DOMAIN:?Set ADMIN_API_DOMAIN in your production .env}
+    volumes:
+      - ./nginx/production.conf.template:/etc/nginx/templates/default.conf.template:ro
+      - ./nginx/proxy-params.conf:/etc/nginx/conf.d/proxy-params.conf:ro
+      - product_page_cache:/var/cache/nginx
+    networks:
+      - website2026
+    healthcheck:
+      test: ["CMD", "wget", "-qO-", "http://127.0.0.1/nginx-health"]
+      interval: 15s
+      timeout: 5s
+      retries: 5
 
   admin-frontend:
     build:
@@ -173,8 +225,8 @@ services:
     depends_on:
       admin-backend:
         condition: service_healthy
-    ports:
-      - "${ADMIN_FRONTEND_PORT:-3002}:3000"
+    expose:
+      - "3000"
     networks:
       - website2026
     healthcheck:
@@ -191,3 +243,4 @@ networks:
 volumes:
   mysql_data:
   minio_data:
+  product_page_cache:

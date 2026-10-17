@@ -1,0 +1,98 @@
+proxy_cache_path /var/cache/nginx/product-pages levels=1:2 keys_zone=product_pages:50m max_size=1g inactive=60m use_temp_path=off;
+
+map $http_rsc $is_next_flight_request {
+    default 1;
+    "" 0;
+}
+
+map $http_next_router_state_tree $has_router_state {
+    default 1;
+    "" 0;
+}
+
+map $http_upgrade $connection_upgrade {
+    default upgrade;
+    "" close;
+}
+
+server {
+    listen 80 default_server;
+    server_name ${SHOP_DOMAIN};
+
+    location = /nginx-health {
+        access_log off;
+        return 200 "ok\n";
+        add_header Content-Type text/plain;
+    }
+
+    location = / {
+        proxy_pass http://user-frontend:3000;
+        include /etc/nginx/conf.d/proxy-params.conf;
+        proxy_cache product_pages;
+        proxy_cache_key "$host|$request_uri";
+        proxy_cache_valid 200 10m;
+        proxy_cache_lock on;
+        proxy_ignore_headers Cache-Control Expires;
+        proxy_cache_bypass $http_authorization $http_cookie $is_next_flight_request $has_router_state;
+        proxy_no_cache $http_authorization $http_cookie $is_next_flight_request $has_router_state $upstream_http_set_cookie;
+        add_header X-Product-Page-Cache $upstream_cache_status always;
+    }
+
+    location ~ ^/(product|category|brand)/ {
+        proxy_pass http://user-frontend:3000;
+        include /etc/nginx/conf.d/proxy-params.conf;
+        proxy_cache product_pages;
+        proxy_cache_key "$host|$request_uri";
+        proxy_cache_valid 200 10m;
+        proxy_cache_lock on;
+        proxy_ignore_headers Cache-Control Expires;
+        proxy_cache_bypass $http_authorization $http_cookie $is_next_flight_request $has_router_state;
+        proxy_no_cache $http_authorization $http_cookie $is_next_flight_request $has_router_state $upstream_http_set_cookie;
+        add_header X-Product-Page-Cache $upstream_cache_status always;
+    }
+
+    location = /brands {
+        proxy_pass http://user-frontend:3000;
+        include /etc/nginx/conf.d/proxy-params.conf;
+        proxy_cache product_pages;
+        proxy_cache_key "$host|$request_uri";
+        proxy_cache_valid 200 10m;
+        proxy_cache_lock on;
+        proxy_ignore_headers Cache-Control Expires;
+        proxy_cache_bypass $http_authorization $http_cookie $is_next_flight_request $has_router_state;
+        proxy_no_cache $http_authorization $http_cookie $is_next_flight_request $has_router_state $upstream_http_set_cookie;
+        add_header X-Product-Page-Cache $upstream_cache_status always;
+    }
+
+    location / {
+        proxy_pass http://user-frontend:3000;
+        include /etc/nginx/conf.d/proxy-params.conf;
+    }
+}
+
+server {
+    listen 80;
+    server_name ${USER_API_DOMAIN};
+    location / {
+        proxy_pass http://user-backend:3005;
+        include /etc/nginx/conf.d/proxy-params.conf;
+    }
+}
+
+server {
+    listen 80;
+    server_name ${ADMIN_DOMAIN};
+    location / {
+        proxy_pass http://admin-frontend:3000;
+        include /etc/nginx/conf.d/proxy-params.conf;
+    }
+}
+
+server {
+    listen 80;
+    server_name ${ADMIN_API_DOMAIN};
+    location / {
+        proxy_pass http://admin-backend:3001;
+        include /etc/nginx/conf.d/proxy-params.conf;
+    }
+}

@@ -1,6 +1,6 @@
 import { notFound, permanentRedirect } from 'next/navigation';
 import ProductDetailsClient from '@/app/singleproduct/[id]/ProductDetailsClient';
-import { API_BASE_URL, PRODUCT_IMAGE_BASE_URL } from '@/app/lib/api';
+import { API_BASE_URL, PRODUCT_CACHE_SECONDS, PRODUCT_CACHE_TAG, PRODUCT_IMAGE_BASE_URL, PRODUCT_LIST_CACHE_TAG } from '@/app/lib/api';
 import { getSiteSettings } from '@/app/lib/siteSettings';
 
 const slugify = (value = '') =>
@@ -14,7 +14,7 @@ async function fetchApi(path) {
   if (!API_BASE_URL) return null;
 
   const response = await fetch(`${API_BASE_URL}${path}`, {
-    cache: 'no-store',
+    next: { revalidate: PRODUCT_CACHE_SECONDS, tags: [PRODUCT_CACHE_TAG, PRODUCT_LIST_CACHE_TAG] },
   });
 
   if (!response.ok) return null;

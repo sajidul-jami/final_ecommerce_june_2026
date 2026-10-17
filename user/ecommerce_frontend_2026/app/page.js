@@ -5,6 +5,7 @@ import Limitedtimeoffer, { OffersSkeleton } from "./components/Limitedtimeoffer.
 import Allproducts from "./components/Allproducts.js";
 import ProductGridSkeleton from "./components/ProductGridSkeleton.js";
 import { getSiteSettings } from './lib/siteSettings';
+import { PRODUCT_CACHE_SECONDS, PRODUCT_LIST_CACHE_TAG } from './lib/api';
 
 const API_BASE_URL = process.env.NEXT_PUBLIC_API_BASE_URL;
 
@@ -12,7 +13,7 @@ async function getCategoryName(categoryCode) {
   if (!API_BASE_URL || !categoryCode) return '';
 
   try {
-    const response = await fetch(`${API_BASE_URL}/categories`, { cache: 'no-store' });
+    const response = await fetch(`${API_BASE_URL}/categories`, { next: { revalidate: PRODUCT_CACHE_SECONDS, tags: [PRODUCT_LIST_CACHE_TAG] } });
     if (!response.ok) return '';
     const categories = await response.json();
     return categories.find((category) => category.cat_code === categoryCode || category.cat_slug === categoryCode)?.name || '';
